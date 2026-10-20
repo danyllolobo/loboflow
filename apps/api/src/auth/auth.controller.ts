@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Req,
   Res,
@@ -18,6 +19,7 @@ import {
   changePasswordSchema,
   loginSchema,
   registerSchema,
+  updateProfileSchema,
 } from '@loboflow/validation';
 import { SessionUser } from '@loboflow/shared';
 import { ApiTags } from '@nestjs/swagger';
@@ -103,6 +105,17 @@ export class AuthController {
     const input = changePasswordSchema.parse(body);
     const sessionId = (req as any).sessionId;
     return this.authService.changePassword(userId, input, sessionId);
+  }
+
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @Patch('profile')
+  async updateProfile(
+    @CurrentUser('id') userId: string,
+    @Body() body: unknown,
+  ) {
+    const input = updateProfileSchema.parse(body);
+    return this.authService.updateProfile(userId, input);
   }
 
   private setSessionCookie(res: Response, token: string) {

@@ -46,6 +46,16 @@ export function SuperAdminPage() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSuspendModalOrg(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const handleSuspend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!suspendModalOrg) return;
@@ -217,7 +227,12 @@ export function SuperAdminPage() {
 
       {/* Modal de Suspensão com Confirmação Obrigatória */}
       {suspendModalOrg && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSuspendModalOrg(null);
+          }}
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+        >
           <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
             <h2 className="text-lg font-bold text-rose-500 flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" /> Suspender Organização

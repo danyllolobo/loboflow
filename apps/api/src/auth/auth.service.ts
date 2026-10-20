@@ -13,6 +13,7 @@ import {
   ChangePasswordInput,
   LoginInput,
   RegisterInput,
+  UpdateProfileInput,
 } from '@loboflow/validation';
 import {
   DEFAULT_ROLE_TEMPLATES,
@@ -339,6 +340,18 @@ export class AuthService {
     }
 
     return { message: 'Senha atualizada com sucesso' };
+  }
+
+  async updateProfile(userId: string, input: UpdateProfileInput) {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: input.name,
+        theme: input.theme,
+        timezone: input.timezone,
+      },
+    });
+    return this.toSessionUser(user);
   }
 
   private toSessionUser(user: {

@@ -1,53 +1,103 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams, Link } from 'react-router';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/auth-context';
 import {
-  Settings,
+  User,
+  Building,
   Users,
   Shield,
-  Clock,
-  Mail,
-  UserPlus,
+  Columns3,
+  ShieldAlert,
+  Key,
   Check,
-  Building,
+  Lock,
+  UserPlus,
+  Clock,
+  Plus,
+  Trash2,
+  ExternalLink,
+  Sparkles,
+  AlertCircle,
 } from 'lucide-react';
 
 export function SettingsPage() {
-  const { activeOrg } = useAuth();
-  const [tab, setTab] = useState<'general' | 'members' | 'roles'>('general');
+  const { user, activeOrg, refreshMe } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentTab = (searchParams.get('tab') as any) || 'profile';
+
+  const [tab, setTab] = useState<'profile' | 'general' | 'members' | 'roles' | 'kanban' | 'superadmin'>(
+    ['profile', 'general', 'members', 'roles', 'kanban', 'superadmin'].includes(currentTab)
+      ? currentTab
+      : 'profile',
+  );
+
+  const [loading, setLoading] = useState(true);
   const [org, setOrg] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [statuses, setStatuses] = useState<any[]>([]);
 
-  // Form Geral
+  // Perfil
+  const [userName, setUserName] = useState(user?.name || '');
+  const [userTimezone, setUserTimezone] = useState(user?.timezone || 'America/Sao_Paulo');
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSuccess, setProfileSuccess] = useState(false);
+
+  // Alterar Senha
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  // Organização
   const [orgName, setOrgName] = useState('');
-  const [timezone, setTimezone] = useState('');
-  const [savedSuccess, setSavedSuccess] = useState(false);
+  const [orgTimezone, setOrgTimezone] = useState('');
+  const [orgSaving, setOrgSaving] = useState(false);
+  const [orgSuccess, setOrgSuccess] = useState(false);
 
-  // Form Convite
+  // Convite
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRoleId, setInviteRoleId] = useState('');
   const [inviteResult, setInviteResult] = useState<string | null>(null);
+  const [inviting, setInviting] = useState(false);
+
+  // Nova Coluna Kanban
+  const [newStatusName, setNewStatusName] = useState('');
+  const [newStatusColor, setNewStatusColor] = useState('#3b82f6');
+  const [statusSaving, setStatusSaving] = useState(false);
+
+  const setTabAndQuery = (newTab: typeof tab) => {
+    setTab(newTab);
+    setSearchParams({ tab: newTab });
+  };
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [orgRes, membersRes, rolesRes]: [any, any, any] = await Promise.all([
-        api.get('/organizations/current'),
-        api.get('/organizations/current/members'),
-        api.get('/organizations/current/roles'),
+      const [orgRes, membersRes, rolesRes, statusesRes]: [any, any, any, any] = await Promise.all([
+        api.get('/organizations/current').catch(() => null),
+        api.get('/organizations/current/members').catch(() => []),
+        api.get('/organizations/current/roles').catch(() => []),
+        api.get('/tasks/statuses').catch(() => []),
       ]);
-      setOrg(orgRes);
-      setOrgName(orgRes.name);
-      setTimezone(orgRes.timezone);
-      setMembers(membersRes || []);
-      setRoles(rolesRes || []);
+
+      if (orgRes) {
+        setOrg(orgRes);
+        setOrgName(orgRes.name || '');
+        setOrgTimezone(orgRes.timezone || 'America/Sao_Paulo');
+      }
+      setMembers(Array.isArray(membersRes) ? membersRes : []);
+      setRoles(Array.isArray(rolesRes) ? rolesRes : []);
+      setStatuses(Array.isArray(statusesRes) ? statusesRes : []);
+
       if (rolesRes?.length > 0 && !inviteRoleId) {
         setInviteRoleId(rolesRes[0].id);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Erro ao carregar configurações:', err);
     } finally {
       setLoading(false);
     }
@@ -55,19 +105,77 @@ export function SettingsPage() {
 
   useEffect(() => {
     loadData();
-  }, [activeOrg?.organizationId]);
+    if (user) {
+      setUserName(user.name);
+      setUserTimezone(user.timezone || 'America/Sao_Paulo');
+    }
+  }, [activeOrg?.organizationId, user?.id]);
 
-  const handleSaveGeneral = async (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userName.trim()) return;
+    try {
+      setProfileSaving(true);
+      await api.patch('/auth/profile', {
+        name: userName.trim(),
+        timezone: userTimezone,
+      });
+      await refreshMe();
+      setProfileSuccess(true);
+      setTimeout(() => setProfileSuccess(false), 3500);
+    } catch (err: any) {
+      alert(err.message || 'Erro ao atualizar perfil');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+
+    if (newPassword.length < 8) {
+      setPasswordError('A nova senha deve ter no mínimo 8 caracteres.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('A confirmação da nova senha não confere.');
+      return;
+    }
+
+    try {
+      setPasswordSaving(true);
+      await api.post('/auth/change-password', {
+        currentPassword,
+        newPassword,
+      });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordSuccess(true);
+      setTimeout(() => setPasswordSuccess(false), 4000);
+    } catch (err: any) {
+      setPasswordError(err.message || 'Erro ao alterar senha. Verifique sua senha atual.');
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
+  const handleSaveOrg = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      setOrgSaving(true);
       await api.patch('/organizations/current', {
-        name: orgName,
-        timezone,
+        name: orgName.trim(),
+        timezone: orgTimezone,
       });
-      setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 3000);
+      setOrgSuccess(true);
+      setTimeout(() => setOrgSuccess(false), 3000);
     } catch (err: any) {
-      alert(err.message || 'Erro ao salvar alterações');
+      alert(err.message || 'Erro ao salvar alterações da empresa');
+    } finally {
+      setOrgSaving(false);
     }
   };
 
@@ -76,15 +184,47 @@ export function SettingsPage() {
     if (!inviteEmail.trim() || !inviteRoleId) return;
 
     try {
+      setInviting(true);
       const res: any = await api.post('/organizations/current/invitations', {
-        email: inviteEmail,
+        email: inviteEmail.trim(),
         roleId: inviteRoleId,
       });
-      setInviteResult(`Convite gerado! Token de acesso: ${res.inviteToken}`);
+      setInviteResult(`Convite enviado com sucesso! Token de acesso: ${res.inviteToken || 'Ativo'}`);
       setInviteEmail('');
       loadData();
     } catch (err: any) {
       alert(err.message || 'Erro ao convidar');
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleCreateStatus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStatusName.trim()) return;
+
+    try {
+      setStatusSaving(true);
+      await api.post('/tasks/statuses', {
+        name: newStatusName.trim(),
+        color: newStatusColor,
+      });
+      setNewStatusName('');
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || 'Erro ao criar status');
+    } finally {
+      setStatusSaving(false);
+    }
+  };
+
+  const handleDeleteStatus = async (id: string, name: string) => {
+    if (!confirm(`Deseja remover a coluna "${name}"? Tarefas vinculadas impedem a exclusão.`)) return;
+    try {
+      await api.delete(`/tasks/statuses/${id}`);
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || 'Erro ao excluir status');
     }
   };
 
@@ -97,98 +237,321 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-6xl mx-auto pb-12">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">
-          Configurações da Organização
+          Configurações do Sistema
         </h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Gerenciamento da empresa, membros da equipe, papéis e permissões RBAC.
+          Gerencie seu perfil, segurança, parâmetros da organização, membros e pipelines operacionais.
         </p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-border gap-4 text-sm font-medium">
+      {/* Tabs com Scroll Horizontal Responsivo */}
+      <div className="flex border-b border-border gap-2 sm:gap-4 text-sm font-medium overflow-x-auto no-scrollbar">
         <button
-          onClick={() => setTab('general')}
-          className={`pb-2.5 border-b-2 flex items-center gap-2 transition-colors ${
+          onClick={() => setTabAndQuery('profile')}
+          className={`pb-2.5 border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
+            tab === 'profile'
+              ? 'border-primary text-primary font-bold'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <User className="h-4 w-4" /> Meu Perfil & Senha
+        </button>
+
+        <button
+          onClick={() => setTabAndQuery('general')}
+          className={`pb-2.5 border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
             tab === 'general'
               ? 'border-primary text-primary font-bold'
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
-          <Building className="h-4 w-4" /> Dados da Empresa
+          <Building className="h-4 w-4" /> Empresa
         </button>
 
         <button
-          onClick={() => setTab('members')}
-          className={`pb-2.5 border-b-2 flex items-center gap-2 transition-colors ${
+          onClick={() => setTabAndQuery('members')}
+          className={`pb-2.5 border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
             tab === 'members'
               ? 'border-primary text-primary font-bold'
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
-          <Users className="h-4 w-4" /> Membros e Convites
+          <Users className="h-4 w-4" /> Equipe & Convites
         </button>
 
         <button
-          onClick={() => setTab('roles')}
-          className={`pb-2.5 border-b-2 flex items-center gap-2 transition-colors ${
+          onClick={() => setTabAndQuery('roles')}
+          className={`pb-2.5 border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
             tab === 'roles'
               ? 'border-primary text-primary font-bold'
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
-          <Shield className="h-4 w-4" /> Papéis e Permissões
+          <Shield className="h-4 w-4" /> Papéis e RBAC
         </button>
+
+        <button
+          onClick={() => setTabAndQuery('kanban')}
+          className={`pb-2.5 border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
+            tab === 'kanban'
+              ? 'border-primary text-primary font-bold'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Columns3 className="h-4 w-4" /> Colunas do Kanban
+        </button>
+
+        {user?.isSuperAdmin && (
+          <button
+            onClick={() => setTabAndQuery('superadmin')}
+            className={`pb-2.5 border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
+              tab === 'superadmin'
+                ? 'border-purple-500 text-purple-400 font-bold'
+                : 'border-transparent text-muted-foreground hover:text-purple-400'
+            }`}
+          >
+            <ShieldAlert className="h-4 w-4 text-purple-400" /> SuperAdmin SaaS
+          </button>
+        )}
       </div>
 
-      {/* Tab Geral */}
-      {tab === 'general' && (
-        <form onSubmit={handleSaveGeneral} className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-5 max-w-xl">
-          <div>
-            <label className="block text-xs font-semibold mb-1">Nome da Organização</label>
-            <input
-              type="text"
-              required
-              value={orgName}
-              onChange={(e) => setOrgName(e.target.value)}
-              className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
+      {/* TAB 1: MEU PERFIL & SENHA */}
+      {tab === 'profile' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          {/* Dados Pessoais */}
+          <form
+            onSubmit={handleSaveProfile}
+            className="bg-card border border-border rounded-2xl p-6 shadow-xs space-y-4"
+          >
+            <div className="flex items-center gap-2.5 pb-2 border-b border-border">
+              <div className="h-8 w-8 rounded-lg bg-primary/20 text-primary flex items-center justify-center font-bold">
+                <User className="h-4 w-4" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-foreground">Informações do Perfil</h3>
+                <p className="text-xs text-muted-foreground">Atualize seu nome de exibição e preferências.</p>
+              </div>
+            </div>
 
-          <div>
-            <label className="block text-xs font-semibold mb-1">Fuso Horário Padrão</label>
-            <input
-              type="text"
-              value={timezone}
-              onChange={(e) => setTimezone(e.target.value)}
-              className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            <span className="text-[11px] text-muted-foreground">Ex.: America/Sao_Paulo</span>
-          </div>
-
-          <div className="pt-2 flex items-center gap-3">
-            <button
-              type="submit"
-              className="px-4 py-2 text-sm font-medium rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-colors"
-            >
-              Salvar Alterações
-            </button>
-            {savedSuccess && (
-              <span className="text-xs text-emerald-500 flex items-center gap-1 font-semibold">
-                <Check className="h-4 w-4" /> Atualizado com sucesso!
+            <div>
+              <label className="block text-xs font-semibold mb-1">E-mail Cadastrado</label>
+              <input
+                type="email"
+                disabled
+                value={user?.email || ''}
+                className="w-full bg-secondary/30 border border-border/80 rounded-xl px-3 py-2 text-sm text-muted-foreground cursor-not-allowed"
+              />
+              <span className="text-[11px] text-muted-foreground mt-0.5 block">
+                O e-mail é utilizado como identificador exclusivo de login.
               </span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold mb-1">Nome Completo *</label>
+              <input
+                type="text"
+                required
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                placeholder="Seu nome completo"
+                className="w-full bg-secondary/50 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold mb-1">Fuso Horário Pessoal</label>
+              <select
+                value={userTimezone}
+                onChange={(e) => setUserTimezone(e.target.value)}
+                className="w-full bg-secondary/50 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+              >
+                <option value="America/Sao_Paulo">Brasília (GMT-3)</option>
+                <option value="America/Manaus">Manaus (GMT-4)</option>
+                <option value="America/Belem">Belém (GMT-3)</option>
+                <option value="America/Fortaleza">Fortaleza (GMT-3)</option>
+                <option value="UTC">UTC Universal</option>
+                <option value="America/New_York">Nova York (EST)</option>
+                <option value="Europe/Lisbon">Lisboa (WET)</option>
+              </select>
+            </div>
+
+            <div className="pt-2 flex items-center justify-between">
+              <button
+                type="submit"
+                disabled={profileSaving}
+                className="px-5 py-2 text-xs font-semibold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              >
+                {profileSaving ? 'Salvando...' : 'Salvar Perfil'}
+              </button>
+
+              {profileSuccess && (
+                <span className="text-xs text-emerald-400 flex items-center gap-1.5 font-semibold animate-in fade-in">
+                  <Check className="h-4 w-4" /> Perfil atualizado!
+                </span>
+              )}
+            </div>
+          </form>
+
+          {/* Alterar Senha */}
+          <form
+            onSubmit={handleChangePassword}
+            className="bg-card border border-border rounded-2xl p-6 shadow-xs space-y-4"
+          >
+            <div className="flex items-center gap-2.5 pb-2 border-b border-border">
+              <div className="h-8 w-8 rounded-lg bg-amber-500/20 text-amber-500 flex items-center justify-center font-bold">
+                <Lock className="h-4 w-4" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-foreground">Segurança & Senha</h3>
+                <p className="text-xs text-muted-foreground">Altere sua senha de acesso periodicamente.</p>
+              </div>
+            </div>
+
+            {passwordError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-400 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{passwordError}</span>
+              </div>
             )}
-          </div>
-        </form>
+
+            {passwordSuccess && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 flex items-center gap-2">
+                <Check className="h-4 w-4 shrink-0" />
+                <span>Senha atualizada com sucesso! Outras sessões foram revogadas.</span>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold mb-1">Senha Atual *</label>
+              <input
+                type="password"
+                required
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Digite sua senha atual"
+                className="w-full bg-secondary/50 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold mb-1">Nova Senha *</label>
+              <input
+                type="password"
+                required
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Mínimo de 8 caracteres"
+                className="w-full bg-secondary/50 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold mb-1">Confirmar Nova Senha *</label>
+              <input
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Repita a nova senha"
+                className="w-full bg-secondary/50 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={passwordSaving}
+                className="px-5 py-2 text-xs font-semibold rounded-xl bg-secondary hover:bg-secondary/80 text-foreground border border-border hover:border-primary/50 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {passwordSaving ? 'Atualizando...' : 'Atualizar Senha'}
+              </button>
+            </div>
+          </form>
+        </div>
       )}
 
-      {/* Tab Membros */}
+      {/* TAB 2: EMPRESA */}
+      {tab === 'general' && (
+        <div className="max-w-xl space-y-6">
+          <form
+            onSubmit={handleSaveOrg}
+            className="bg-card border border-border rounded-2xl p-6 shadow-xs space-y-5"
+          >
+            <div className="flex items-center gap-2.5 pb-2 border-b border-border">
+              <div className="h-8 w-8 rounded-lg bg-primary/20 text-primary flex items-center justify-center font-bold">
+                <Building className="h-4 w-4" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-foreground">Identidade da Organização</h3>
+                <p className="text-xs text-muted-foreground">Configurações globais do tenant ativo.</p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold mb-1">Nome da Organização *</label>
+              <input
+                type="text"
+                required
+                value={orgName}
+                onChange={(e) => setOrgName(e.target.value)}
+                className="w-full bg-secondary/50 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold mb-1">Fuso Horário Padrão</label>
+              <input
+                type="text"
+                value={orgTimezone}
+                onChange={(e) => setOrgTimezone(e.target.value)}
+                placeholder="Ex.: America/Sao_Paulo"
+                className="w-full bg-secondary/50 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <span className="text-[11px] text-muted-foreground mt-0.5 block">
+                Define o fuso utilizado para prazos de projetos e entregas das tarefas.
+              </span>
+            </div>
+
+            <div className="pt-2 flex items-center justify-between">
+              <button
+                type="submit"
+                disabled={orgSaving}
+                className="px-5 py-2 text-xs font-semibold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              >
+                {orgSaving ? 'Salvando...' : 'Salvar Alterações'}
+              </button>
+              {orgSuccess && (
+                <span className="text-xs text-emerald-400 flex items-center gap-1.5 font-semibold">
+                  <Check className="h-4 w-4" /> Empresa atualizada!
+                </span>
+              )}
+            </div>
+          </form>
+
+          {/* Informações Técnicas do Tenant */}
+          <div className="p-5 rounded-2xl bg-secondary/20 border border-border space-y-2 text-xs">
+            <span className="text-muted-foreground font-semibold uppercase tracking-wider text-[10px]">
+              Metadados do Tenant
+            </span>
+            <div className="flex justify-between py-1 border-b border-border/40">
+              <span className="text-muted-foreground">ID do Workspace:</span>
+              <span className="font-mono text-foreground">{activeOrg?.organizationId || '—'}</span>
+            </div>
+            <div className="flex justify-between py-1">
+              <span className="text-muted-foreground">Seu Papel Atual:</span>
+              <span className="font-semibold text-primary">{activeOrg?.roleName || '—'}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: MEMBROS & CONVITES */}
       {tab === 'members' && (
         <div className="space-y-6">
-          {/* Convidar */}
-          <form onSubmit={handleInvite} className="bg-card border border-border rounded-2xl p-5 shadow-sm space-y-4">
+          <form onSubmit={handleInvite} className="bg-card border border-border rounded-2xl p-5 shadow-xs space-y-4">
             <h3 className="text-sm font-bold flex items-center gap-2">
               <UserPlus className="h-4 w-4 text-primary" /> Convidar Novo Colaborador
             </h3>
@@ -201,7 +564,7 @@ export function SettingsPage() {
                   placeholder="E-mail do colaborador (ex.: designer@agencia.com)"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full bg-secondary/50 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
 
@@ -209,7 +572,7 @@ export function SettingsPage() {
                 <select
                   value={inviteRoleId}
                   onChange={(e) => setInviteRoleId(e.target.value)}
-                  className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full bg-secondary/50 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
                 >
                   {roles.map((r) => (
                     <option key={r.id} value={r.id}>
@@ -222,32 +585,33 @@ export function SettingsPage() {
 
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-medium rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+              disabled={inviting}
+              className="px-5 py-2 text-xs font-semibold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm cursor-pointer disabled:opacity-50"
             >
-              Enviar Convite
+              {inviting ? 'Gerando convite...' : 'Enviar Convite'}
             </button>
 
             {inviteResult && (
-              <div className="p-3 rounded-lg bg-secondary/60 text-xs text-foreground font-mono break-all border border-border">
+              <div className="p-3 rounded-xl bg-secondary/60 text-xs text-foreground font-mono break-all border border-border">
                 {inviteResult}
               </div>
             )}
           </form>
 
           {/* Lista de Membros */}
-          <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-            <div className="p-4 border-b border-border font-bold text-sm">
-              Membros Ativos ({members.length})
+          <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-xs">
+            <div className="p-4 border-b border-border font-bold text-sm flex justify-between items-center">
+              <span>Membros Ativos ({members.length})</span>
             </div>
             <div className="divide-y divide-border/60">
               {members.map((m) => (
                 <div key={m.id} className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="h-8 w-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs uppercase">
-                      {m.user?.name?.[0]}
+                      {m.user?.name?.[0] || 'U'}
                     </div>
                     <div>
-                      <div className="text-sm font-semibold">{m.user?.name}</div>
+                      <div className="text-sm font-semibold text-foreground">{m.user?.name}</div>
                       <div className="text-xs text-muted-foreground">{m.user?.email}</div>
                     </div>
                   </div>
@@ -262,9 +626,9 @@ export function SettingsPage() {
         </div>
       )}
 
-      {/* Tab Papéis */}
+      {/* TAB 4: PAPÉIS E RBAC */}
       {tab === 'roles' && (
-        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-xs">
           <div className="p-4 border-b border-border font-bold text-sm">
             Papéis e Estrutura de Permissões RBAC
           </div>
@@ -272,7 +636,7 @@ export function SettingsPage() {
             {roles.map((r) => (
               <div key={r.id} className="p-4 space-y-1">
                 <div className="flex justify-between items-center">
-                  <span className="font-bold text-sm">{r.name}</span>
+                  <span className="font-bold text-sm text-foreground">{r.name}</span>
                   {r.isOwner && (
                     <span className="text-[10px] bg-primary/20 text-primary font-bold px-2 py-0.5 rounded-full uppercase">
                       Proprietário
@@ -285,6 +649,123 @@ export function SettingsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: COLUNAS DO KANBAN */}
+      {tab === 'kanban' && (
+        <div className="space-y-6">
+          <form
+            onSubmit={handleCreateStatus}
+            className="bg-card border border-border rounded-2xl p-5 shadow-xs space-y-4 max-w-xl"
+          >
+            <h3 className="text-sm font-bold flex items-center gap-2">
+              <Plus className="h-4 w-4 text-primary" /> Adicionar Nova Coluna ao Pipeline
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Crie etapas personalizadas para o fluxo de tarefas da sua equipe (ex.: Revisão, Copywriting, etc.).
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-2">
+                <input
+                  type="text"
+                  required
+                  placeholder="Nome da etapa (ex.: Copywriting)"
+                  value={newStatusName}
+                  onChange={(e) => setNewStatusName(e.target.value)}
+                  className="w-full bg-secondary/50 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={newStatusColor}
+                  onChange={(e) => setNewStatusColor(e.target.value)}
+                  className="h-9 w-12 rounded-lg bg-transparent cursor-pointer border border-border"
+                />
+                <button
+                  type="submit"
+                  disabled={statusSaving}
+                  className="flex-1 px-4 py-2 text-xs font-semibold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  {statusSaving ? 'Criando...' : 'Adicionar'}
+                </button>
+              </div>
+            </div>
+          </form>
+
+          {/* Lista de Colunas Atuais */}
+          <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-xs max-w-2xl">
+            <div className="p-4 border-b border-border font-bold text-sm">
+              Colunas Ativas do Kanban ({statuses.length})
+            </div>
+            <div className="divide-y divide-border/60">
+              {statuses.map((st, idx) => (
+                <div key={st.id} className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground font-mono w-5">#{idx + 1}</span>
+                    <span
+                      className="w-3.5 h-3.5 rounded-full shrink-0 shadow-xs"
+                      style={{ backgroundColor: st.color || '#3b82f6' }}
+                    />
+                    <div>
+                      <span className="font-semibold text-sm text-foreground">{st.name}</span>
+                      <span className="text-xs text-muted-foreground ml-2">
+                        ({st._count?.tasks || 0} tarefas ativas)
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {st._count?.tasks === 0 && (
+                      <button
+                        onClick={() => handleDeleteStatus(st.id, st.name)}
+                        className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                        title="Excluir coluna vazia"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 6: SUPERADMIN SAAS */}
+      {tab === 'superadmin' && user?.isSuperAdmin && (
+        <div className="space-y-6 max-w-2xl">
+          <div className="bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-blue-500/10 border border-purple-500/30 rounded-2xl p-6 shadow-xs space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold">
+                <ShieldAlert className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground">Console SuperAdmin SaaS</h3>
+                <p className="text-xs text-muted-foreground">
+                  Painel de governança multi-empresa, tenants, cobranças e telemetria global.
+                </p>
+              </div>
+            </div>
+
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Como SuperAdmin do LoboFlow, você possui controle irrestrito sobre todas as organizações cadastradas,
+              logs de auditoria da infraestrutura, criação de novos clientes institucionais e feature flags.
+            </p>
+
+            <div className="pt-2">
+              <Link
+                to="/superadmin"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm shadow-md transition-all cursor-pointer"
+              >
+                Acessar Painel SuperAdmin Completo <ExternalLink className="h-4 w-4" />
+              </Link>
+            </div>
           </div>
         </div>
       )}

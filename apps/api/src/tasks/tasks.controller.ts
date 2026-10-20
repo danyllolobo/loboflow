@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -48,6 +49,34 @@ export class TasksController {
   @RequirePermissions('tasks.view')
   async listStatuses(@CurrentOrg('id') orgId: string) {
     return this.tasksService.listStatuses(orgId);
+  }
+
+  @Post('statuses')
+  @RequirePermissions('tasks.edit')
+  async createStatus(
+    @CurrentOrg('id') orgId: string,
+    @Body() body: { name: string; color?: string; category?: any },
+  ) {
+    return this.tasksService.createStatus(orgId, body);
+  }
+
+  @Patch('statuses/:id')
+  @RequirePermissions('tasks.edit')
+  async updateStatus(
+    @CurrentOrg('id') orgId: string,
+    @Param('id') statusId: string,
+    @Body() body: { name?: string; color?: string; category?: any },
+  ) {
+    return this.tasksService.updateStatus(orgId, statusId, body);
+  }
+
+  @Delete('statuses/:id')
+  @RequirePermissions('tasks.edit')
+  async deleteStatus(
+    @CurrentOrg('id') orgId: string,
+    @Param('id') statusId: string,
+  ) {
+    return this.tasksService.deleteStatus(orgId, statusId);
   }
 
   @Get(':id')

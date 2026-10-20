@@ -529,4 +529,66 @@ export class TasksService {
       orderBy: { position: 'asc' },
     });
   }
+
+  async createStatus(
+    orgId: string,
+    input: { name: string; color?: string; category?: StatusCategory },
+  ) {
+    const count = await this.prisma.taskStatus.count({
+      where: { organizationId: orgId, archivedAt: null },
+    });
+
+    return this.prisma.taskStatus.create({
+      data: {
+        organizationId: orgId,
+        name: input.name,
+        color: input.color || '#3b82f6',
+        category: input.category || StatusCategory.IN_PROGRESS,
+        position: count + 1,
+      },
+    });
+  }
+
+  async updateStatus(
+    orgId: string,
+    statusId: string,
+    input: { name?: string; color?: string; category?: StatusCategory },
+  ) {
+    const status = await this.prisma.taskStatus.findFirst({
+      where: { id: statusId, organizationId: orgId },
+    });
+    if (!status) throw new NotFoundException('Status não encontrado');
+
+    return this.prisma.taskStatus.update({
+      where: { id: statusId },
+      data: {
+        name: input.name ?? status.name,
+        color: input.color ?? status.color,
+        category: input.category ?? status.category,
+      },
+    });
+  }
+
+  async deleteStatus(orgId: string, statusId: string) {
+    const status = await this.prisma.taskStatus.findFirst({
+      where: { id: statusId, organizationId: orgId },
+    });
+    if (!status) throw new NotFoundException('Status não encontrado');
+
+    const tasksCount = await this.prisma.task.count({
+      where: { statusId, organizationId: orgId, archivedAt: null },
+    });
+
+    if (tasksCount > 0) {
+      throw new BadRequestException(
+        `Não é possível excluir esta coluna pois há ${tasksCount} tarefa(s) vinculadas a ela. Mova as tarefas antes de excluir.`,
+      );
+    }
+
+    return this.prisma.taskStatus.update({
+      where: { id: statusId },
+      data: { archivedAt: new Date() },
+    });
+  }
 }
+

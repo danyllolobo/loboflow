@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Send,
@@ -44,6 +44,17 @@ export function JarvisDrawer({
   ]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -136,7 +147,13 @@ export function JarvisDrawer({
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full sm:w-[480px] z-50 bg-card border-l border-border shadow-2xl flex flex-col">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex justify-end animate-in fade-in duration-200"
+    >
+      <div className="w-full sm:w-[480px] h-full bg-card border-l border-border shadow-2xl flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border bg-secondary/30">
         <div className="flex items-center gap-3">
@@ -267,6 +284,7 @@ export function JarvisDrawer({
           <Send className="h-4 w-4" />
         </button>
       </form>
+      </div>
     </div>
   );
 }

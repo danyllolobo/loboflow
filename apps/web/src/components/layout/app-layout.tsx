@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router';
+import { NavLink, Outlet, useLocation, Link } from 'react-router';
 import { useAuth } from '../../contexts/auth-context';
 import { useTheme } from '../../contexts/theme-context';
 import { LoboFlowLogo } from '../logo';
@@ -155,17 +155,21 @@ export function AppLayout() {
 
         {/* Footer do Usuário & Tema */}
         <div className="p-3 border-t border-border flex items-center justify-between">
-          <div className="flex items-center gap-2.5 truncate">
-            <div className="h-8 w-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs uppercase">
+          <Link
+            to="/settings?tab=profile"
+            className="flex items-center gap-2.5 truncate flex-1 hover:opacity-80 transition-opacity p-1 rounded-lg hover:bg-secondary/50 cursor-pointer"
+            title="Editar meu perfil e senha"
+          >
+            <div className="h-8 w-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs uppercase shrink-0">
               {user?.name?.[0] || 'U'}
             </div>
             <div className="truncate text-left">
-              <div className="text-sm font-medium truncate">{user?.name}</div>
+              <div className="text-sm font-medium truncate text-foreground">{user?.name}</div>
               <div className="text-[11px] text-muted-foreground truncate">{user?.email}</div>
             </div>
-          </div>
+          </Link>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
               className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"

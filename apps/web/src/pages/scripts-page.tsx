@@ -141,6 +141,17 @@ export function ScriptsPage() {
     fetchScripts();
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsModalOpen(false);
+        setHistoryScript(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const filteredScripts = useMemo(() => {
     return scripts.filter((s) => {
       const matchSearch =
@@ -581,7 +592,12 @@ export function ScriptsPage() {
 
       {/* Modal de Criação / Edição de Roteiro */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsModalOpen(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+        >
           <div className="bg-card w-full max-w-3xl rounded-3xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Header do Modal */}
             <div className="px-6 py-4 border-b border-border flex items-center justify-between">
@@ -767,7 +783,12 @@ export function ScriptsPage() {
 
       {/* Modal de Histórico de Versões */}
       {historyScript && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setHistoryScript(null);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+        >
           <div className="bg-card w-full max-w-2xl rounded-3xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
             <div className="px-6 py-4 border-b border-border flex items-center justify-between">
               <div>
