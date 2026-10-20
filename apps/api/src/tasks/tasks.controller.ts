@@ -1,0 +1,149 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
+import { TasksService } from './tasks.service';
+import { AuthGuard } from '../common/guards/auth.guard';
+import { TenantGuard } from '../common/guards/tenant.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { CurrentOrg } from '../common/decorators/current-org.decorator';
+import { RequirePermissions } from '../common/decorators/require-permissions.decorator';
+import {
+  checklistItemSchema,
+  commentSchema,
+  createTaskSchema,
+  moveTaskSchema,
+  taskListQuery,
+  updateChecklistItemSchema,
+  updateTaskSchema,
+} from '@loboflow/validation';
+import { ActiveOrganizationContext } from '@loboflow/shared';
+
+@ApiTags('Tasks')
+@Controller('tasks')
+@UseGuards(AuthGuard, TenantGuard, PermissionsGuard)
+export class TasksController {
+  constructor(private readonly tasksService: TasksService) {}
+
+  @Get()
+  @RequirePermissions('tasks.view')
+  async list(
+    @CurrentOrg() orgContext: ActiveOrganizationContext,
+    @CurrentUser('id') userId: string,
+    @Query() query: unknown,
+  ) {
+    const parsedQuery = taskListQuery.parse(query);
+    return this.tasksService.list(orgContext, parsedQuery, userId);
+  }
+
+  @Get('statuses')
+  @RequirePermissions('tasks.view')
+  async listStatuses(@CurrentOrg('id') orgId: string) {
+    return this.tasksService.listStatuses(orgId);
+  }
+
+  @Get(':id')
+  @RequirePermissions('tasks.view')
+  async getOne(
+    @CurrentOrg('id') orgId: string,
+    @Param('id') id: string,
+  ) {
+    return this.tasksService.getOne(orgId, id);
+  }
+
+  @Post()
+  @RequirePermissions('tasks.create')
+  async create(
+    @CurrentOrg() orgContext: ActiveOrganizationContext,
+    @CurrentUser('id') userId: string,
+    @Body() body: unknown,
+  ) {
+    const input = createTaskSchema.parse(body);
+    return this.tasksService.create(orgContext, userId, input);
+  }
+
+  @Patch(':id')
+  @RequirePermissions('tasks.edit')
+  async update(
+    @CurrentOrg('id') orgId: string,
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Body() body: unknown,
+  ) {
+    const input = updateTaskSchema.parse(body);
+    return this.tasksService.update(orgId, id, userId, input);
+  }
+
+  @Post(':id/move')
+  @RequirePermissions('tasks.change_status')
+  async move(
+    @CurrentOrg('id') orgId: string,
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Body() body: unknown,
+  ) {
+    const input = moveTaskSchema.parse(body);
+    return this.tasksService.move(orgId, id, userId, input.statusId, input.position);
+  }
+
+  @Post(':id/comments')
+  @RequirePermissions('tasks.view')
+  async addComment(
+    @CurrentOrg('id') orgId: string,
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Body() body: unknown,
+  ) {
+    const input = commentSchema.parse(body);
+    return this.tasksService.addComment(orgId, id, userId, input);
+  }
+
+  @Post(':id/checklist')
+  @RequirePermissions('tasks.edit')
+  async addChecklistItem(
+    @CurrentOrg('id') orgId: string,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const input = checklistItemSchema.parse(body);
+    return this.tasksService.addChecklistItem(orgId, id, input);
+  }
+
+  @Patch(':id/checklist/:itemId')
+  @RequirePermissions('tasks.edit')
+  async updateChecklistItem(
+    @CurrentOrg('id') orgId: string,
+    @Param('id') taskId: string,
+    @Param('itemId') itemId: string,
+    @CurrentUser('id') userId: string,
+    @Body() body: unknown,
+  ) {
+    const input = updateChecklistItemSchema.parse(body);
+    return this.tasksService.updateChecklistItem(
+      orgId,
+      taskId,
+      itemId,
+      userId,
+      input.title,
+      input.done,
+    );
+  }
+
+  @Post(':id/archive')
+  @RequirePermissions('tasks.delete')
+  async archive(
+    @CurrentOrg('id') orgId: string,
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.tasksService.archive(orgId, id, userId);
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "loboflow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LoboFlow — plataforma SaaS multiempresa de gestão, produtividade, automação e IA.",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22.12.0 <23"
+  },
+  "scripts": {
+    "build": "pnpm -r --workspace-concurrency=1 build",
+    "build:packages": "pnpm --filter @loboflow/shared build && pnpm --filter @loboflow/validation build",
+    "dev": "pnpm build:packages && pnpm -r --parallel --filter @loboflow/api --filter @loboflow/web dev",
+    "dev:api": "pnpm --filter @loboflow/api dev",
+    "dev:worker": "pnpm --filter @loboflow/api dev:worker",
+    "dev:web": "pnpm --filter @loboflow/web dev",
+    "infra:up": "docker compose -f compose.dev.yaml up -d",
+    "infra:down": "docker compose -f compose.dev.yaml down",
+    "db:migrate": "pnpm --filter @loboflow/api db:migrate",
+    "db:deploy": "pnpm --filter @loboflow/api db:deploy",
+    "db:seed": "pnpm --filter @loboflow/api db:seed",
+    "db:generate": "pnpm --filter @loboflow/api db:generate",
+    "superadmin:create": "pnpm --filter @loboflow/api superadmin:create",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "test:e2e": "pnpm --filter @loboflow/web test:e2e",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md,yaml,css}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,yaml,css}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3"
+  }
+}

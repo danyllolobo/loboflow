@@ -1,0 +1,43 @@
+# Dependências
+node_modules/
+.pnpm-store/
+
+# Builds
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.turbo/
+
+# Ambiente e segredos — NUNCA commitar
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# Dumps e backups
+*.dump
+*.sql.gz
+backups/
+
+# Testes
+playwright-report/
+test-results/
+blob-report/
+
+# Logs
+*.log
+logs/
+
+# Editores / SO
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Arquivos de referência de marca fora do app (as logos oficiais ficam versionadas)
+/LoboFlow (1).png
+/LoboFlow (2).png
