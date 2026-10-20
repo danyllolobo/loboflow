@@ -16,7 +16,8 @@ import {
   Sun,
   Moon,
   ChevronDown,
-  Plus,
+  FileText,
+  TrendingUp,
   Search,
   Menu,
   X,
@@ -37,6 +38,8 @@ export function AppLayout() {
     { to: '/tasks', label: 'Tarefas', icon: CheckSquare },
     { to: '/projects', label: 'Projetos', icon: FolderKanban },
     { to: '/clients', label: 'Clientes', icon: Users2 },
+    { to: '/scripts', label: 'Roteiros', icon: FileText },
+    { to: '/commercial', label: 'Comercial', icon: TrendingUp },
     { to: '/settings', label: 'Configurações', icon: Settings },
   ];
 

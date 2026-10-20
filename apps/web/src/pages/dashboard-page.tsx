@@ -20,6 +20,8 @@ import {
   Bot,
   Layers,
   ChevronRight,
+  FileText,
+  Target,
 } from 'lucide-react';
 
 export function DashboardPage() {
@@ -87,6 +89,20 @@ export function DashboardPage() {
 
         {/* Botões de Ação Imediata */}
         <div className="flex flex-wrap items-center gap-2.5">
+          <NavLink
+            to="/scripts"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-secondary hover:bg-secondary/80 border border-border text-foreground text-xs font-semibold transition-all hover:shadow-sm"
+          >
+            <FileText className="h-3.5 w-3.5 text-primary" />
+            <span>Roteiros</span>
+          </NavLink>
+          <NavLink
+            to="/commercial"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-secondary hover:bg-secondary/80 border border-border text-foreground text-xs font-semibold transition-all hover:shadow-sm"
+          >
+            <Target className="h-3.5 w-3.5 text-primary" />
+            <span>Funil Comercial</span>
+          </NavLink>
           <NavLink
             to="/projects"
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-secondary hover:bg-secondary/80 border border-border text-foreground text-xs font-semibold transition-all hover:shadow-sm"

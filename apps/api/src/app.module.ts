@@ -10,6 +10,8 @@ import { ProjectsModule } from './projects/projects.module';
 import { ClientsModule } from './clients/clients.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { HealthModule } from './health/health.module';
+import { ContentScriptsModule } from './content-scripts/content-scripts.module';
+import { DealsModule } from './deals/deals.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { HealthModule } from './health/health.module';
     ClientsModule,
     DashboardModule,
     HealthModule,
+    ContentScriptsModule,
+    DealsModule,
   ],
   providers: [
     {

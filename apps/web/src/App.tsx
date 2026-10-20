@@ -8,6 +8,8 @@ import { DashboardPage } from './pages/dashboard-page';
 import { TasksPage } from './pages/tasks-page';
 import { ProjectsPage } from './pages/projects-page';
 import { ClientsPage } from './pages/clients-page';
+import { ScriptsPage } from './pages/scripts-page';
+import { CommercialPage } from './pages/commercial-page';
 import { SettingsPage } from './pages/settings-page';
 import { SuperAdminPage } from './pages/superadmin-page';
 import { LoboFlowLogo } from './components/logo';
@@ -82,6 +84,8 @@ export function App() {
           <Route path="/tasks" element={<TasksPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/clients" element={<ClientsPage />} />
+          <Route path="/scripts" element={<ScriptsPage />} />
+          <Route path="/commercial" element={<CommercialPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/superadmin" element={<SuperAdminOnlyRoute />} />
         </Route>
