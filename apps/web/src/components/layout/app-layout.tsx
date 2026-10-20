@@ -56,47 +56,56 @@ export function AppLayout() {
         </div>
 
         {/* Seletor de Organização Multi-Tenant */}
-        <div className="p-3 border-b border-border/70 relative">
+        <div className="p-3 border-b border-border/70 relative z-30">
           <button
             onClick={() => setOrgDropdownOpen(!orgDropdownOpen)}
-            className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg bg-secondary/50 hover:bg-secondary border border-border/50 transition-colors"
+            className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-xl bg-secondary hover:bg-secondary/80 border border-border transition-all shadow-sm cursor-pointer"
           >
             <div className="flex items-center gap-2.5 truncate">
-              <div className="h-6 w-6 rounded bg-primary/20 text-primary flex items-center justify-center font-bold text-xs uppercase">
+              <div className="h-6 w-6 rounded-lg bg-primary/15 text-primary flex items-center justify-center font-bold text-xs uppercase">
                 {activeOrg?.organizationName?.[0] || 'L'}
               </div>
-              <span className="font-medium text-foreground truncate">
-                {activeOrg?.organizationName || 'Selecione'}
+              <span className="font-semibold text-foreground truncate text-xs">
+                {activeOrg?.organizationName || 'Selecione a empresa'}
               </span>
             </div>
-            <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <ChevronDown className={`h-4 w-4 text-muted-foreground flex-shrink-0 transition-transform ${orgDropdownOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {orgDropdownOpen && (
-            <div className="absolute top-full left-3 right-3 mt-1 py-1 bg-card border border-border rounded-lg shadow-xl z-50">
-              <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Minhas Organizações
+            <>
+              {/* Backdrop invisível para fechar ao clicar fora */}
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setOrgDropdownOpen(false)}
+              />
+              <div className="absolute top-full left-3 right-3 mt-1.5 p-1.5 bg-card border border-border rounded-xl shadow-2xl z-50 double-bezel space-y-1">
+                <div className="px-3 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                  Minhas Organizações
+                </div>
+                <div className="max-h-56 overflow-y-auto space-y-0.5">
+                  {memberships.map((m) => (
+                    <button
+                      key={m.organizationId}
+                      onClick={() => {
+                        switchOrganization(m.organizationId);
+                        setOrgDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-xs rounded-lg flex items-center justify-between hover:bg-secondary transition-colors cursor-pointer ${
+                        m.organizationId === activeOrg?.organizationId
+                          ? 'bg-primary/10 text-primary font-semibold'
+                          : 'text-foreground'
+                      }`}
+                    >
+                      <span className="truncate">{m.organizationName}</span>
+                      <span className="text-[10px] text-muted-foreground ml-2 px-1.5 py-0.5 rounded bg-secondary/80 shrink-0">
+                        {m.roleName}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
-              {memberships.map((m) => (
-                <button
-                  key={m.organizationId}
-                  onClick={() => {
-                    switchOrganization(m.organizationId);
-                    setOrgDropdownOpen(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between hover:bg-secondary/70 transition-colors ${
-                    m.organizationId === activeOrg?.organizationId
-                      ? 'text-primary font-semibold'
-                      : 'text-foreground'
-                  }`}
-                >
-                  <span className="truncate">{m.organizationName}</span>
-                  <span className="text-xs text-muted-foreground ml-2">
-                    {m.roleName}
-                  </span>
-                </button>
-              ))}
-            </div>
+            </>
           )}
         </div>
 

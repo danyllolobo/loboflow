@@ -41,3 +41,7 @@ Thumbs.db
 # Arquivos de referência de marca fora do app (as logos oficiais ficam versionadas)
 /LoboFlow (1).png
 /LoboFlow (2).png
+
+# Arsenal de skills do agente (permanece local para a IA)
+skills/
+

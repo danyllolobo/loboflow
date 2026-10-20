@@ -15,6 +15,12 @@ import {
   MessageSquare,
   CheckSquare,
   ArrowUpDown,
+  User,
+  FolderKanban,
+  Users2,
+  Tag,
+  ChevronRight,
+  Flame,
 } from 'lucide-react';
 import { TASK_PRIORITY_LABELS, TaskPriority } from '@loboflow/shared';
 
@@ -22,6 +28,9 @@ export function TasksPage() {
   const { activeOrg } = useAuth();
   const [tasks, setTasks] = useState<any[]>([]);
   const [statuses, setStatuses] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [filterView, setFilterView] = useState('all');
@@ -35,6 +44,9 @@ export function TasksPage() {
   const [newPriority, setNewPriority] = useState<TaskPriority>('MEDIUM');
   const [newDueDate, setNewDueDate] = useState('');
   const [newStatusId, setNewStatusId] = useState('');
+  const [newProjectId, setNewProjectId] = useState('');
+  const [newClientId, setNewClientId] = useState('');
+  const [newAssigneeId, setNewAssigneeId] = useState('');
 
   // Comentários & Checklist no Modal de Detalhes
   const [commentText, setCommentText] = useState('');
@@ -43,12 +55,21 @@ export function TasksPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [tasksRes, statusesRes]: [any, any] = await Promise.all([
-        api.get(`/tasks?view=${filterView}&q=${encodeURIComponent(search)}&pageSize=100`),
-        api.get('/tasks/statuses'),
-      ]);
+      const [tasksRes, statusesRes, projectsRes, clientsRes, membersRes]: [any, any, any, any, any] =
+        await Promise.all([
+          api.get(`/tasks?view=${filterView}&q=${encodeURIComponent(search)}&pageSize=100`),
+          api.get('/tasks/statuses'),
+          api.get('/projects').catch(() => []),
+          api.get('/clients').catch(() => []),
+          api.get('/organizations/current/members').catch(() => []),
+        ]);
+
       setTasks(tasksRes.items || []);
       setStatuses(statusesRes || []);
+      setProjects(Array.isArray(projectsRes) ? projectsRes : []);
+      setClients(Array.isArray(clientsRes) ? clientsRes : []);
+      setMembers(Array.isArray(membersRes) ? membersRes : []);
+
       if (statusesRes?.length > 0 && !newStatusId) {
         setNewStatusId(statusesRes[0].id);
       }
@@ -74,10 +95,18 @@ export function TasksPage() {
         priority: newPriority,
         dueDate: newDueDate || undefined,
         statusId: newStatusId || undefined,
+        projectId: newProjectId || undefined,
+        clientId: newClientId || undefined,
+        assigneeIds: newAssigneeId ? [newAssigneeId] : undefined,
       });
+
+      // Limpa o formulário
       setNewTitle('');
       setNewDesc('');
       setNewDueDate('');
+      setNewProjectId('');
+      setNewClientId('');
+      setNewAssigneeId('');
       setNewModalOpen(false);
       loadData();
     } catch (err: any) {
@@ -117,7 +146,7 @@ export function TasksPage() {
       const updated = await api.get(`/tasks/${selectedTask.id}`);
       setSelectedTask(updated);
     } catch (err: any) {
-      alert(err.message);
+      alert(err.message || 'Erro ao adicionar comentário');
     }
   };
 
@@ -131,7 +160,7 @@ export function TasksPage() {
       const updated = await api.get(`/tasks/${selectedTask.id}`);
       setSelectedTask(updated);
     } catch (err: any) {
-      alert(err.message);
+      alert(err.message || 'Erro ao adicionar item no checklist');
     }
   };
 
@@ -142,42 +171,58 @@ export function TasksPage() {
       const updated = await api.get(`/tasks/${selectedTask.id}`);
       setSelectedTask(updated);
     } catch (err: any) {
-      alert(err.message);
+      alert(err.message || 'Erro ao atualizar checklist');
     }
   };
 
   const getPriorityBadge = (p: TaskPriority) => {
     switch (p) {
       case 'URGENT':
-        return <span className="bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[10px] font-bold px-2 py-0.5 rounded uppercase">Urgente</span>;
+        return (
+          <span className="bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase flex items-center gap-1">
+            <Flame className="h-2.5 w-2.5" /> Urgente
+          </span>
+        );
       case 'HIGH':
-        return <span className="bg-amber-500/10 text-amber-500 border border-amber-500/30 text-[10px] font-semibold px-2 py-0.5 rounded uppercase">Alta</span>;
+        return (
+          <span className="bg-amber-500/10 text-amber-500 border border-amber-500/30 text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase">
+            Alta
+          </span>
+        );
       case 'MEDIUM':
-        return <span className="bg-sky-500/10 text-sky-400 border border-sky-500/30 text-[10px] font-semibold px-2 py-0.5 rounded uppercase">Média</span>;
+        return (
+          <span className="bg-sky-500/10 text-sky-400 border border-sky-500/30 text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase">
+            Média
+          </span>
+        );
       case 'LOW':
-        return <span className="bg-slate-500/10 text-slate-400 border border-slate-500/30 text-[10px] font-semibold px-2 py-0.5 rounded uppercase">Baixa</span>;
+        return (
+          <span className="bg-slate-500/10 text-slate-400 border border-slate-500/30 text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase">
+            Baixa
+          </span>
+        );
     }
   };
 
   return (
-    <div className="space-y-5 h-full flex flex-col">
+    <div className="space-y-6 h-full flex flex-col">
       {/* Top Header & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1 border-b border-border/80">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-display">
             Tarefas da Organização
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Fluxo Kanban e Lista com controle de status, prazos e checklists.
+            Fluxo Kanban e Lista com controle de status, responsáveis, projetos e checklists.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           {/* Seletor de visualização */}
-          <div className="flex bg-secondary p-0.5 rounded-lg border border-border">
+          <div className="flex bg-secondary p-1 rounded-xl border border-border">
             <button
               onClick={() => setViewMode('kanban')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                 viewMode === 'kanban'
                   ? 'bg-card text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
@@ -187,7 +232,7 @@ export function TasksPage() {
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                 viewMode === 'list'
                   ? 'bg-card text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
@@ -199,7 +244,7 @@ export function TasksPage() {
 
           <button
             onClick={() => setNewModalOpen(true)}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold transition-all shadow-md hover:shadow-primary/25 cursor-pointer"
           >
             <Plus className="h-4 w-4" /> Criar Tarefa
           </button>
@@ -220,10 +265,10 @@ export function TasksPage() {
             <button
               key={f.id}
               onClick={() => setFilterView(f.id)}
-              className={`px-3 py-1 text-xs rounded-full transition-all font-medium ${
+              className={`px-3.5 py-1.5 text-xs rounded-xl transition-all font-semibold cursor-pointer ${
                 filterView === f.id
                   ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                  : 'bg-secondary/70 text-muted-foreground hover:bg-secondary hover:text-foreground'
               }`}
             >
               {f.label}
@@ -231,23 +276,23 @@ export function TasksPage() {
           ))}
         </div>
 
-        <div className="relative min-w-[200px] w-full sm:w-64">
-          <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+        <div className="relative min-w-[220px] w-full sm:w-64">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && loadData()}
-            placeholder="Buscar por título..."
-            className="w-full bg-secondary/40 border border-border rounded-lg pl-9 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            placeholder="Buscar por demanda ou tag..."
+            className="w-full bg-background border border-border rounded-xl pl-9 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary shadow-sm"
           />
         </div>
       </div>
 
       {/* Conteúdo: Kanban ou Lista */}
       {loading ? (
-        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-          <Clock className="h-5 w-5 animate-spin mr-2 text-primary" /> Carregando tarefas...
+        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm min-h-[300px]">
+          <Clock className="h-5 w-5 animate-spin mr-2 text-primary" /> Carregando tarefas do LoboFlow...
         </div>
       ) : viewMode === 'kanban' ? (
         /* Visualização KANBAN */
@@ -258,20 +303,20 @@ export function TasksPage() {
               return (
                 <div
                   key={status.id}
-                  className="w-80 flex flex-col bg-secondary/20 rounded-xl border border-border/80 p-3 max-h-[calc(100vh-250px)]"
+                  className="w-80 flex flex-col bg-secondary/30 rounded-2xl border border-border/80 p-3.5 max-h-[calc(100vh-250px)]"
                 >
                   {/* Cabeçalho da Coluna */}
-                  <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-border/60">
+                  <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-border/60">
                     <div className="flex items-center gap-2">
                       <div
                         className="h-2.5 w-2.5 rounded-full"
                         style={{ backgroundColor: status.color }}
                       />
-                      <span className="font-semibold text-xs text-foreground truncate">
+                      <span className="font-bold text-xs text-foreground uppercase tracking-wide truncate">
                         {status.name}
                       </span>
                     </div>
-                    <span className="text-xs font-mono font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                    <span className="text-xs font-mono font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full border border-border/60">
                       {columnTasks.length}
                     </span>
                   </div>
@@ -282,28 +327,37 @@ export function TasksPage() {
                       <div
                         key={task.id}
                         onClick={() => handleOpenDetail(task.id)}
-                        className="bg-card hover:border-primary/50 border border-border/80 rounded-xl p-3 shadow-sm cursor-pointer transition-all hover:shadow-md space-y-2.5 group"
+                        className="bg-card hover:border-primary/50 border border-border rounded-xl p-3.5 shadow-sm cursor-pointer transition-all hover:shadow-md space-y-3 group double-bezel"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-mono text-muted-foreground font-semibold">
+                          <span className="text-xs font-mono text-muted-foreground font-bold">
                             #{task.number}
                           </span>
                           {getPriorityBadge(task.priority)}
                         </div>
 
-                        <div className="text-sm font-medium text-foreground group-hover:text-primary transition-colors leading-snug">
+                        <div className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors leading-snug">
                           {task.title}
                         </div>
 
-                        {task.project && (
-                          <div className="text-[11px] text-muted-foreground bg-secondary/80 px-2 py-0.5 rounded font-medium inline-block truncate max-w-full">
-                            {task.project.name}
-                          </div>
-                        )}
+                        <div className="flex flex-wrap gap-1.5">
+                          {task.project && (
+                            <div className="text-[10px] text-muted-foreground bg-secondary px-2 py-0.5 rounded-md font-medium border border-border truncate max-w-full flex items-center gap-1">
+                              <FolderKanban className="h-2.5 w-2.5" />
+                              <span className="truncate">{task.project.name}</span>
+                            </div>
+                          )}
+                          {task.client && (
+                            <div className="text-[10px] text-muted-foreground bg-secondary px-2 py-0.5 rounded-md font-medium border border-border truncate max-w-full flex items-center gap-1">
+                              <Users2 className="h-2.5 w-2.5" />
+                              <span className="truncate">{task.client.name}</span>
+                            </div>
+                          )}
+                        </div>
 
-                        <div className="pt-2 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
+                        <div className="pt-2 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
                           {task.dueDate ? (
-                            <span className="flex items-center gap-1 text-[11px]">
+                            <span className="flex items-center gap-1 text-[11px] font-medium">
                               <Calendar className="h-3 w-3 text-muted-foreground" />
                               {new Date(task.dueDate).toLocaleDateString('pt-BR')}
                             </span>
@@ -311,7 +365,7 @@ export function TasksPage() {
                             <span />
                           )}
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2.5">
                             {task._count?.comments > 0 && (
                               <span className="flex items-center gap-1 text-[11px]">
                                 <MessageSquare className="h-3 w-3" />
@@ -336,7 +390,7 @@ export function TasksPage() {
         </div>
       ) : (
         /* Visualização em LISTA */
-        <div className="flex-1 overflow-y-auto bg-card rounded-xl border border-border shadow-sm">
+        <div className="flex-1 overflow-y-auto bg-card rounded-2xl border border-border shadow-sm double-bezel">
           <table className="w-full text-left text-sm">
             <thead className="bg-secondary/40 text-muted-foreground text-xs uppercase border-b border-border">
               <tr>
@@ -344,7 +398,7 @@ export function TasksPage() {
                 <th className="py-3 px-4">Título</th>
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4">Prioridade</th>
-                <th className="py-3 px-4">Projeto</th>
+                <th className="py-3 px-4">Projeto / Cliente</th>
                 <th className="py-3 px-4">Prazo</th>
               </tr>
             </thead>
@@ -353,20 +407,21 @@ export function TasksPage() {
                 <tr
                   key={task.id}
                   onClick={() => handleOpenDetail(task.id)}
-                  className="hover:bg-secondary/30 cursor-pointer transition-colors"
+                  className="hover:bg-secondary/40 cursor-pointer transition-colors"
                 >
-                  <td className="py-3 px-4 font-mono text-xs text-muted-foreground">
+                  <td className="py-3 px-4 font-mono text-xs text-muted-foreground font-bold">
                     #{task.number}
                   </td>
-                  <td className="py-3 px-4 font-medium text-foreground hover:text-primary">
+                  <td className="py-3 px-4 font-semibold text-foreground hover:text-primary">
                     {task.title}
                   </td>
                   <td className="py-3 px-4">
                     <span
-                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                      className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase"
                       style={{
                         backgroundColor: `${task.status?.color}20`,
                         color: task.status?.color,
+                        border: `1px solid ${task.status?.color}40`,
                       }}
                     >
                       {task.status?.name}
@@ -374,7 +429,7 @@ export function TasksPage() {
                   </td>
                   <td className="py-3 px-4">{getPriorityBadge(task.priority)}</td>
                   <td className="py-3 px-4 text-xs text-muted-foreground">
-                    {task.project?.name || '—'}
+                    {task.project?.name || task.client?.name || '—'}
                   </td>
                   <td className="py-3 px-4 text-xs text-muted-foreground">
                     {task.dueDate ? new Date(task.dueDate).toLocaleDateString('pt-BR') : '—'}
@@ -386,15 +441,20 @@ export function TasksPage() {
         </div>
       )}
 
-      {/* Modal: Nova Tarefa */}
+      {/* Modal: Nova Tarefa (Alto Contraste & Seletores Completos) */}
       {newModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <h2 className="text-lg font-bold font-display">Criar Nova Tarefa</h2>
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-card text-foreground border border-border rounded-3xl w-full max-w-xl p-6 sm:p-7 shadow-2xl double-bezel space-y-5">
+            <div className="flex items-center justify-between pb-3.5 border-b border-border">
+              <div>
+                <h2 className="text-lg font-bold font-display text-foreground">Criar Nova Tarefa</h2>
+                <p className="text-xs text-muted-foreground">
+                  Cadastre uma demanda vinculada ao fluxo da {activeOrg?.organizationName}
+                </p>
+              </div>
               <button
                 onClick={() => setNewModalOpen(false)}
-                className="text-muted-foreground hover:text-foreground"
+                className="p-1.5 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -402,35 +462,99 @@ export function TasksPage() {
 
             <form onSubmit={handleCreateTask} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium mb-1">Título da Tarefa *</label>
+                <label className="block text-xs font-semibold mb-1.5 text-foreground">
+                  Título da Tarefa *
+                </label>
                 <input
                   type="text"
                   required
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="Ex.: Desenvolver criativos da campanha de tráfego"
-                  className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="Ex.: Desenvolver criativos da campanha de tráfego pago"
+                  className="w-full bg-background border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary shadow-sm placeholder:text-muted-foreground"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium mb-1">Descrição</label>
+                <label className="block text-xs font-semibold mb-1.5 text-foreground">
+                  Descrição e Orientações
+                </label>
                 <textarea
                   rows={3}
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
-                  placeholder="Instruções, links ou particularidades da demanda..."
-                  className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="Instruções da demanda, links de referência, objetivos..."
+                  className="w-full bg-background border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary shadow-sm placeholder:text-muted-foreground"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Grid: Projeto e Cliente */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-medium mb-1">Prioridade</label>
+                  <label className="block text-xs font-semibold mb-1.5 text-foreground">
+                    Projeto Vinculado
+                  </label>
+                  <select
+                    value={newProjectId}
+                    onChange={(e) => setNewProjectId(e.target.value)}
+                    className="w-full bg-background border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary shadow-sm cursor-pointer [&>option]:bg-card [&>option]:text-foreground"
+                  >
+                    <option value="">Nenhum projeto vinculado</option>
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5 text-foreground">
+                    Cliente Vinculado
+                  </label>
+                  <select
+                    value={newClientId}
+                    onChange={(e) => setNewClientId(e.target.value)}
+                    className="w-full bg-background border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary shadow-sm cursor-pointer [&>option]:bg-card [&>option]:text-foreground"
+                  >
+                    <option value="">Nenhum cliente vinculado</option>
+                    {clients.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Grid: Responsável, Prioridade e Status */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5 text-foreground">
+                    Responsável
+                  </label>
+                  <select
+                    value={newAssigneeId}
+                    onChange={(e) => setNewAssigneeId(e.target.value)}
+                    className="w-full bg-background border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary shadow-sm cursor-pointer [&>option]:bg-card [&>option]:text-foreground"
+                  >
+                    <option value="">Sem responsável</option>
+                    {members.map((m) => (
+                      <option key={m.userId} value={m.userId}>
+                        {m.user?.name || m.user?.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5 text-foreground">
+                    Prioridade
+                  </label>
                   <select
                     value={newPriority}
                     onChange={(e) => setNewPriority(e.target.value as TaskPriority)}
-                    className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full bg-background border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary shadow-sm cursor-pointer [&>option]:bg-card [&>option]:text-foreground"
                   >
                     <option value="LOW">Baixa</option>
                     <option value="MEDIUM">Média</option>
@@ -440,11 +564,13 @@ export function TasksPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium mb-1">Status Inicial</label>
+                  <label className="block text-xs font-semibold mb-1.5 text-foreground">
+                    Status Inicial
+                  </label>
                   <select
                     value={newStatusId}
                     onChange={(e) => setNewStatusId(e.target.value)}
-                    className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full bg-background border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary shadow-sm cursor-pointer [&>option]:bg-card [&>option]:text-foreground"
                   >
                     {statuses.map((s) => (
                       <option key={s.id} value={s.id}>
@@ -456,26 +582,28 @@ export function TasksPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium mb-1">Prazo de Entrega</label>
+                <label className="block text-xs font-semibold mb-1.5 text-foreground">
+                  Prazo Limite de Entrega
+                </label>
                 <input
                   type="date"
                   value={newDueDate}
                   onChange={(e) => setNewDueDate(e.target.value)}
-                  className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full bg-background border border-border text-foreground rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary shadow-sm"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-border">
+              <div className="flex justify-end gap-2.5 pt-4 border-t border-border">
                 <button
                   type="button"
                   onClick={() => setNewModalOpen(false)}
-                  className="px-4 py-2 text-sm rounded-lg bg-secondary hover:bg-secondary/80 text-foreground"
+                  className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-secondary hover:bg-secondary/80 text-foreground transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-sm rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-sm"
+                  className="px-5 py-2.5 text-xs font-semibold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-primary/25 transition-all cursor-pointer"
                 >
                   Salvar Tarefa
                 </button>
@@ -487,12 +615,12 @@ export function TasksPage() {
 
       {/* Modal / Drawer: Detalhes da Tarefa com Comentários e Checklist */}
       {selectedTask && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-card text-foreground border border-border rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl double-bezel">
             {/* Header */}
-            <div className="p-4 border-b border-border flex items-center justify-between">
+            <div className="p-5 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="font-mono text-sm font-bold text-muted-foreground">
+                <span className="font-mono text-sm font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-lg border border-primary/20">
                   #{selectedTask.number}
                 </span>
                 <span className="text-base font-bold truncate max-w-md">
@@ -501,7 +629,7 @@ export function TasksPage() {
               </div>
               <button
                 onClick={() => setSelectedTask(null)}
-                className="text-muted-foreground hover:text-foreground"
+                className="p-1.5 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -509,14 +637,14 @@ export function TasksPage() {
 
             {/* Conteúdo com Scroll */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* Mudar Status Rápido */}
-              <div className="flex items-center justify-between bg-secondary/30 p-3 rounded-xl border border-border">
+              {/* Barra de Status e Prioridade */}
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-secondary/40 p-3.5 rounded-2xl border border-border">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium">Status Atual:</span>
+                  <span className="text-xs font-semibold text-muted-foreground">Status Atual:</span>
                   <select
                     value={selectedTask.statusId}
                     onChange={(e) => handleMoveStatus(selectedTask.id, e.target.value)}
-                    className="bg-card border border-border text-xs rounded-lg px-2.5 py-1 font-semibold"
+                    className="bg-card border border-border text-foreground text-xs font-bold rounded-xl px-3 py-1.5 shadow-sm cursor-pointer [&>option]:bg-card [&>option]:text-foreground"
                   >
                     {statuses.map((s) => (
                       <option key={s.id} value={s.id}>
@@ -529,54 +657,84 @@ export function TasksPage() {
                 <div>{getPriorityBadge(selectedTask.priority)}</div>
               </div>
 
+              {/* Informações de Projeto, Cliente e Prazo */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div className="p-3 rounded-xl bg-secondary/30 border border-border/60">
+                  <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">
+                    Projeto
+                  </span>
+                  <span className="font-semibold text-foreground truncate block mt-0.5">
+                    {selectedTask.project?.name || 'Não vinculado'}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-secondary/30 border border-border/60">
+                  <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">
+                    Cliente
+                  </span>
+                  <span className="font-semibold text-foreground truncate block mt-0.5">
+                    {selectedTask.client?.name || 'Não vinculado'}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-secondary/30 border border-border/60">
+                  <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">
+                    Prazo Limite
+                  </span>
+                  <span className="font-semibold text-foreground block mt-0.5">
+                    {selectedTask.dueDate
+                      ? new Date(selectedTask.dueDate).toLocaleDateString('pt-BR')
+                      : 'Sem prazo definido'}
+                  </span>
+                </div>
+              </div>
+
               {/* Descrição */}
               {selectedTask.description && (
-                <div>
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase mb-1.5">
+                <div className="space-y-1.5">
+                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                     Descrição
                   </h3>
-                  <div className="text-sm bg-secondary/20 p-3 rounded-lg border border-border/50 whitespace-pre-wrap">
+                  <div className="text-sm bg-background p-4 rounded-xl border border-border whitespace-pre-wrap leading-relaxed shadow-sm">
                     {selectedTask.description}
                   </div>
                 </div>
               )}
 
               {/* Checklist */}
-              <div>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase mb-2 flex items-center gap-1.5">
+              <div className="space-y-2.5">
+                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                   <CheckSquare className="h-3.5 w-3.5 text-primary" /> Checklist de Subtarefas
                 </h3>
 
-                <div className="space-y-1.5 mb-3">
+                <div className="space-y-1.5">
                   {selectedTask.checklist?.map((item: any) => (
                     <label
                       key={item.id}
-                      className="flex items-center gap-2.5 p-2 bg-secondary/30 rounded-lg hover:bg-secondary/50 cursor-pointer text-sm"
+                      className="flex items-center gap-3 p-2.5 bg-background border border-border/60 rounded-xl hover:bg-secondary/40 cursor-pointer text-xs transition-colors shadow-sm"
                     >
                       <input
                         type="checkbox"
                         checked={item.done}
                         onChange={(e) => handleToggleChecklist(item.id, e.target.checked)}
-                        className="rounded border-border text-primary focus:ring-0"
+                        className="rounded border-border text-primary focus:ring-0 cursor-pointer"
                       />
-                      <span className={item.done ? 'line-through text-muted-foreground' : ''}>
+                      <span className={item.done ? 'line-through text-muted-foreground' : 'font-medium'}>
                         {item.title}
                       </span>
                     </label>
                   ))}
                 </div>
 
-                <form onSubmit={handleAddChecklist} className="flex gap-2">
+                <form onSubmit={handleAddChecklist} className="flex gap-2 pt-1">
                   <input
                     type="text"
                     value={checklistText}
                     onChange={(e) => setChecklistText(e.target.value)}
-                    placeholder="Adicionar item ao checklist..."
-                    className="flex-1 bg-secondary/40 border border-border rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="Adicionar subitem ao checklist..."
+                    className="flex-1 bg-background border border-border rounded-xl px-3.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary shadow-sm"
                   />
                   <button
                     type="submit"
-                    className="px-3 py-1.5 text-xs rounded-lg bg-secondary hover:bg-secondary/80 font-medium"
+                    className="px-4 py-2 text-xs rounded-xl bg-secondary hover:bg-secondary/80 text-foreground font-semibold cursor-pointer border border-border"
                   >
                     Adicionar
                   </button>
@@ -584,34 +742,34 @@ export function TasksPage() {
               </div>
 
               {/* Comentários */}
-              <div>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase mb-2 flex items-center gap-1.5">
-                  <MessageSquare className="h-3.5 w-3.5 text-sky-400" /> Comentários e Histórico
+              <div className="space-y-2.5 pt-2 border-t border-border/60">
+                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <MessageSquare className="h-3.5 w-3.5 text-sky-400" /> Comentários da Demanda
                 </h3>
 
-                <div className="space-y-3 mb-3">
+                <div className="space-y-2.5 max-h-48 overflow-y-auto">
                   {selectedTask.comments?.map((c: any) => (
-                    <div key={c.id} className="p-3 bg-secondary/30 rounded-xl border border-border/60 text-xs">
-                      <div className="flex justify-between items-center mb-1 text-muted-foreground">
-                        <span className="font-semibold text-foreground">{c.author?.name || 'Membro'}</span>
-                        <span>{new Date(c.createdAt).toLocaleString('pt-BR')}</span>
+                    <div key={c.id} className="p-3.5 bg-background rounded-xl border border-border text-xs space-y-1 shadow-sm">
+                      <div className="flex justify-between items-center text-muted-foreground">
+                        <span className="font-bold text-foreground">{c.author?.name || 'Membro'}</span>
+                        <span className="text-[10px]">{new Date(c.createdAt).toLocaleString('pt-BR')}</span>
                       </div>
-                      <div className="whitespace-pre-wrap text-sm">{c.body}</div>
+                      <div className="whitespace-pre-wrap text-foreground/90 leading-relaxed">{c.body}</div>
                     </div>
                   ))}
                 </div>
 
-                <form onSubmit={handleAddComment} className="flex gap-2">
+                <form onSubmit={handleAddComment} className="flex gap-2 pt-1">
                   <input
                     type="text"
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
-                    placeholder="Escreva um comentário ou atualização..."
-                    className="flex-1 bg-secondary/40 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="Escreva uma orientação ou atualização..."
+                    className="flex-1 bg-background border border-border rounded-xl px-3.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary shadow-sm"
                   />
                   <button
                     type="submit"
-                    className="px-4 py-2 text-xs rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+                    className="px-4 py-2 text-xs rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow cursor-pointer"
                   >
                     Enviar
                   </button>
