@@ -95,6 +95,15 @@ let cached: AppEnv | null = null;
 const DEV_ENCRYPTION_KEY = Buffer.alloc(32, 7);
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
+  if (source === process.env && !source.DATABASE_URL) {
+    try {
+      if (typeof (process as any).loadEnvFile === 'function') {
+        (process as any).loadEnvFile();
+      }
+    } catch {
+      // Ignora se o arquivo .env não existir (variáveis injetadas pelo container)
+    }
+  }
   if (cached && source === process.env) return cached;
   const parsed = schema.safeParse(source);
   if (!parsed.success) {
