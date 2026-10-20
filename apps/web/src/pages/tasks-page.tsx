@@ -23,6 +23,161 @@ import {
   Flame,
 } from 'lucide-react';
 import { TASK_PRIORITY_LABELS, TaskPriority } from '@loboflow/shared';
+import {
+  DndContext,
+  useDraggable,
+  useDroppable,
+  DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+
+interface DraggableTaskCardProps {
+  task: any;
+  onOpenDetail: (id: string) => void;
+  getPriorityBadge: (p: TaskPriority) => React.ReactNode;
+}
+
+function DraggableTaskCard({ task, onOpenDetail, getPriorityBadge }: DraggableTaskCardProps) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: task.id,
+  });
+
+  const style: React.CSSProperties | undefined = transform
+    ? {
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+        zIndex: 50,
+      }
+    : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      onClick={() => onOpenDetail(task.id)}
+      className={`bg-card hover:border-primary/50 border border-border rounded-xl p-3.5 shadow-sm cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md space-y-3 group double-bezel select-none ${
+        isDragging ? 'opacity-70 ring-2 ring-primary shadow-xl rotate-1 scale-[1.02]' : ''
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-mono text-muted-foreground font-bold">
+          #{task.number}
+        </span>
+        {getPriorityBadge(task.priority)}
+      </div>
+
+      <div className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors leading-snug">
+        {task.title}
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {task.project && (
+          <div className="text-[10px] text-muted-foreground bg-secondary px-2 py-0.5 rounded-md font-medium border border-border truncate max-w-full flex items-center gap-1">
+            <FolderKanban className="h-2.5 w-2.5" />
+            <span className="truncate">{task.project.name}</span>
+          </div>
+        )}
+        {task.client && (
+          <div className="text-[10px] text-muted-foreground bg-secondary px-2 py-0.5 rounded-md font-medium border border-border truncate max-w-full flex items-center gap-1">
+            <Users2 className="h-2.5 w-2.5" />
+            <span className="truncate">{task.client.name}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="pt-2 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
+        {task.dueDate ? (
+          <span className="flex items-center gap-1 text-[11px] font-medium">
+            <Calendar className="h-3 w-3 text-muted-foreground" />
+            {new Date(task.dueDate).toLocaleDateString('pt-BR')}
+          </span>
+        ) : (
+          <span />
+        )}
+
+        <div className="flex items-center gap-2.5">
+          {task._count?.comments > 0 && (
+            <span className="flex items-center gap-1 text-[11px]">
+              <MessageSquare className="h-3 w-3" />
+              {task._count.comments}
+            </span>
+          )}
+          {task._count?.checklist > 0 && (
+            <span className="flex items-center gap-1 text-[11px]">
+              <CheckSquare className="h-3 w-3" />
+              {task._count.checklist}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface DroppableColumnProps {
+  status: any;
+  tasks: any[];
+  onOpenDetail: (id: string) => void;
+  getPriorityBadge: (p: TaskPriority) => React.ReactNode;
+}
+
+function DroppableColumn({
+  status,
+  tasks,
+  onOpenDetail,
+  getPriorityBadge,
+}: DroppableColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: status.id,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`w-80 flex flex-col rounded-2xl border transition-all duration-200 p-3.5 max-h-[calc(100vh-250px)] ${
+        isOver
+          ? 'bg-primary/10 border-primary ring-2 ring-primary/20 shadow-md'
+          : 'bg-secondary/30 border-border/80'
+      }`}
+    >
+      {/* Cabeçalho da Coluna */}
+      <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-border/60">
+        <div className="flex items-center gap-2">
+          <div
+            className="h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: status.color }}
+          />
+          <span className="font-bold text-xs text-foreground uppercase tracking-wide truncate">
+            {status.name}
+          </span>
+        </div>
+        <span className="text-xs font-mono font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full border border-border/60">
+          {tasks.length}
+        </span>
+      </div>
+
+      {/* Cards da Coluna */}
+      <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 min-h-[120px]">
+        {tasks.map((task) => (
+          <DraggableTaskCard
+            key={task.id}
+            task={task}
+            onOpenDetail={onOpenDetail}
+            getPriorityBadge={getPriorityBadge}
+          />
+        ))}
+        {tasks.length === 0 && (
+          <div className="h-24 rounded-xl border border-dashed border-border/50 flex items-center justify-center text-xs text-muted-foreground/60">
+            Arraste uma tarefa aqui
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function TasksPage() {
   const { activeOrg } = useAuth();
@@ -111,6 +266,37 @@ export function TasksPage() {
       loadData();
     } catch (err: any) {
       alert(err.message || 'Erro ao criar tarefa');
+    }
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const taskId = String(active.id);
+    const targetStatusId = String(over.id);
+
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task || task.statusId === targetStatusId) return;
+
+    // Atualização otimista imediata na UI
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, statusId: targetStatusId } : t)),
+    );
+
+    try {
+      await api.post(`/tasks/${taskId}/move`, { statusId: targetStatusId });
+    } catch (err: any) {
+      console.error('Falha ao mover tarefa via arrastar e soltar', err);
+      loadData();
     }
   };
 
@@ -295,99 +481,22 @@ export function TasksPage() {
           <Clock className="h-5 w-5 animate-spin mr-2 text-primary" /> Carregando tarefas do LoboFlow...
         </div>
       ) : viewMode === 'kanban' ? (
-        /* Visualização KANBAN */
-        <div className="flex-1 overflow-x-auto pb-4">
-          <div className="flex gap-4 min-w-max h-full">
-            {statuses.map((status) => {
-              const columnTasks = tasks.filter((t) => t.statusId === status.id);
-              return (
-                <div
+        /* Visualização KANBAN com Drag-and-Drop fluido */
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+          <div className="flex-1 overflow-x-auto pb-4">
+            <div className="flex gap-4 min-w-max h-full">
+              {statuses.map((status) => (
+                <DroppableColumn
                   key={status.id}
-                  className="w-80 flex flex-col bg-secondary/30 rounded-2xl border border-border/80 p-3.5 max-h-[calc(100vh-250px)]"
-                >
-                  {/* Cabeçalho da Coluna */}
-                  <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-border/60">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: status.color }}
-                      />
-                      <span className="font-bold text-xs text-foreground uppercase tracking-wide truncate">
-                        {status.name}
-                      </span>
-                    </div>
-                    <span className="text-xs font-mono font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full border border-border/60">
-                      {columnTasks.length}
-                    </span>
-                  </div>
-
-                  {/* Cards da Coluna */}
-                  <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
-                    {columnTasks.map((task) => (
-                      <div
-                        key={task.id}
-                        onClick={() => handleOpenDetail(task.id)}
-                        className="bg-card hover:border-primary/50 border border-border rounded-xl p-3.5 shadow-sm cursor-pointer transition-all hover:shadow-md space-y-3 group double-bezel"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-mono text-muted-foreground font-bold">
-                            #{task.number}
-                          </span>
-                          {getPriorityBadge(task.priority)}
-                        </div>
-
-                        <div className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors leading-snug">
-                          {task.title}
-                        </div>
-
-                        <div className="flex flex-wrap gap-1.5">
-                          {task.project && (
-                            <div className="text-[10px] text-muted-foreground bg-secondary px-2 py-0.5 rounded-md font-medium border border-border truncate max-w-full flex items-center gap-1">
-                              <FolderKanban className="h-2.5 w-2.5" />
-                              <span className="truncate">{task.project.name}</span>
-                            </div>
-                          )}
-                          {task.client && (
-                            <div className="text-[10px] text-muted-foreground bg-secondary px-2 py-0.5 rounded-md font-medium border border-border truncate max-w-full flex items-center gap-1">
-                              <Users2 className="h-2.5 w-2.5" />
-                              <span className="truncate">{task.client.name}</span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="pt-2 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
-                          {task.dueDate ? (
-                            <span className="flex items-center gap-1 text-[11px] font-medium">
-                              <Calendar className="h-3 w-3 text-muted-foreground" />
-                              {new Date(task.dueDate).toLocaleDateString('pt-BR')}
-                            </span>
-                          ) : (
-                            <span />
-                          )}
-
-                          <div className="flex items-center gap-2.5">
-                            {task._count?.comments > 0 && (
-                              <span className="flex items-center gap-1 text-[11px]">
-                                <MessageSquare className="h-3 w-3" />
-                                {task._count.comments}
-                              </span>
-                            )}
-                            {task._count?.checklist > 0 && (
-                              <span className="flex items-center gap-1 text-[11px]">
-                                <CheckSquare className="h-3 w-3" />
-                                {task._count.checklist}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+                  status={status}
+                  tasks={tasks.filter((t) => t.statusId === status.id)}
+                  onOpenDetail={handleOpenDetail}
+                  getPriorityBadge={getPriorityBadge}
+                />
+              ))}
+            </div>
           </div>
-        </div>
+        </DndContext>
       ) : (
         /* Visualização em LISTA */
         <div className="flex-1 overflow-y-auto bg-card rounded-2xl border border-border shadow-sm double-bezel">
