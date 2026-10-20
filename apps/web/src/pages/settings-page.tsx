@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Sparkles,
   AlertCircle,
+  Edit3,
 } from 'lucide-react';
 
 export function SettingsPage() {
@@ -68,6 +69,12 @@ export function SettingsPage() {
   const [newStatusName, setNewStatusName] = useState('');
   const [newStatusColor, setNewStatusColor] = useState('#3b82f6');
   const [statusSaving, setStatusSaving] = useState(false);
+
+  // Edição de Coluna de Status Existente
+  const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
+  const [editStatusName, setEditStatusName] = useState('');
+  const [editStatusColor, setEditStatusColor] = useState('#3b82f6');
+  const [isSavingStatusEdit, setIsSavingStatusEdit] = useState(false);
 
   const setTabAndQuery = (newTab: typeof tab) => {
     setTab(newTab);
@@ -225,6 +232,31 @@ export function SettingsPage() {
       await loadData();
     } catch (err: any) {
       alert(err.message || 'Erro ao excluir status');
+    }
+  };
+
+  const handleStartEditStatus = (st: any) => {
+    setEditingStatusId(st.id);
+    setEditStatusName(st.name);
+    setEditStatusColor(st.color || '#3b82f6');
+  };
+
+  const handleSaveStatusEdit = async (stId: string) => {
+    if (!editStatusName.trim()) return;
+    try {
+      setIsSavingStatusEdit(true);
+      await api.patch(`/tasks/statuses/${stId}`, {
+        name: editStatusName.trim(),
+        color: editStatusColor,
+      });
+      setStatuses((prev) =>
+        prev.map((s) => (s.id === stId ? { ...s, name: editStatusName.trim(), color: editStatusColor } : s)),
+      );
+      setEditingStatusId(null);
+    } catch (err: any) {
+      alert(err.message || 'Erro ao atualizar status');
+    } finally {
+      setIsSavingStatusEdit(false);
     }
   };
 
@@ -703,35 +735,85 @@ export function SettingsPage() {
               Colunas Ativas do Kanban ({statuses.length})
             </div>
             <div className="divide-y divide-border/60">
-              {statuses.map((st, idx) => (
-                <div key={st.id} className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground font-mono w-5">#{idx + 1}</span>
-                    <span
-                      className="w-3.5 h-3.5 rounded-full shrink-0 shadow-xs"
-                      style={{ backgroundColor: st.color || '#3b82f6' }}
-                    />
-                    <div>
-                      <span className="font-semibold text-sm text-foreground">{st.name}</span>
-                      <span className="text-xs text-muted-foreground ml-2">
-                        ({st._count?.tasks || 0} tarefas ativas)
-                      </span>
+              {statuses.map((st, idx) => {
+                const isEditingThis = editingStatusId === st.id;
+
+                if (isEditingThis) {
+                  return (
+                    <div key={st.id} className="p-4 bg-secondary/50 space-y-2.5 animate-in fade-in duration-150">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editStatusName}
+                          onChange={(e) => setEditStatusName(e.target.value)}
+                          className="flex-1 bg-background border border-border rounded-xl px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                          placeholder="Nome da etapa..."
+                        />
+                        <input
+                          type="color"
+                          value={editStatusColor}
+                          onChange={(e) => setEditStatusColor(e.target.value)}
+                          className="h-8 w-10 rounded-lg cursor-pointer border border-border bg-transparent p-0 shrink-0"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setEditingStatusId(null)}
+                          className="px-3 py-1 rounded-lg text-xs bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isSavingStatusEdit || !editStatusName.trim()}
+                          onClick={() => handleSaveStatusEdit(st.id)}
+                          className="px-4 py-1 rounded-lg text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer disabled:opacity-50"
+                        >
+                          {isSavingStatusEdit ? 'Salvando...' : 'Salvar'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={st.id} className="p-4 flex items-center justify-between hover:bg-secondary/20 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-muted-foreground font-mono w-5">#{idx + 1}</span>
+                      <span
+                        className="w-3.5 h-3.5 rounded-full shrink-0 shadow-xs"
+                        style={{ backgroundColor: st.color || '#3b82f6' }}
+                      />
+                      <div>
+                        <span className="font-semibold text-sm text-foreground">{st.name}</span>
+                        <span className="text-xs text-muted-foreground ml-2">
+                          ({st._count?.tasks || 0} tarefas ativas)
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleStartEditStatus(st)}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-secondary transition-colors cursor-pointer"
+                        title="Editar nome e cor da coluna"
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </button>
+                      {st._count?.tasks === 0 && (
+                        <button
+                          onClick={() => handleDeleteStatus(st.id, st.name)}
+                          className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                          title="Excluir coluna vazia"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    {st._count?.tasks === 0 && (
-                      <button
-                        onClick={() => handleDeleteStatus(st.id, st.name)}
-                        className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
-                        title="Excluir coluna vazia"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

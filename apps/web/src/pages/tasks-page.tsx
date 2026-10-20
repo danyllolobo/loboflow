@@ -229,6 +229,12 @@ export function TasksPage() {
   const [newColumnColor, setNewColumnColor] = useState('#3b82f6');
   const [isSavingColumn, setIsSavingColumn] = useState(false);
 
+  // Edição de Coluna de Status Existente
+  const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
+  const [editStatusName, setEditStatusName] = useState('');
+  const [editStatusColor, setEditStatusColor] = useState('#3b82f6');
+  const [isSavingStatusEdit, setIsSavingStatusEdit] = useState(false);
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -486,6 +492,31 @@ export function TasksPage() {
       await loadData();
     } catch (err: any) {
       alert(err.message || 'Erro ao excluir coluna');
+    }
+  };
+
+  const handleStartEditStatus = (st: any) => {
+    setEditingStatusId(st.id);
+    setEditStatusName(st.name);
+    setEditStatusColor(st.color || '#3b82f6');
+  };
+
+  const handleSaveStatusEdit = async (stId: string) => {
+    if (!editStatusName.trim()) return;
+    try {
+      setIsSavingStatusEdit(true);
+      await api.patch(`/tasks/statuses/${stId}`, {
+        name: editStatusName.trim(),
+        color: editStatusColor,
+      });
+      setStatuses((prev) =>
+        prev.map((s) => (s.id === stId ? { ...s, name: editStatusName.trim(), color: editStatusColor } : s)),
+      );
+      setEditingStatusId(null);
+    } catch (err: any) {
+      alert(err.message || 'Erro ao atualizar coluna');
+    } finally {
+      setIsSavingStatusEdit(false);
     }
   };
 
@@ -1334,14 +1365,59 @@ export function TasksPage() {
             <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
               {statuses.map((st) => {
                 const count = tasks.filter((t) => t.statusId === st.id).length;
+                const isEditingThis = editingStatusId === st.id;
+
+                if (isEditingThis) {
+                  return (
+                    <div
+                      key={st.id}
+                      className="p-3 rounded-xl bg-secondary/50 border border-primary/50 space-y-2 animate-in fade-in duration-150"
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editStatusName}
+                          onChange={(e) => setEditStatusName(e.target.value)}
+                          className="flex-1 bg-background border border-border rounded-lg px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                          placeholder="Nome da etapa..."
+                        />
+                        <input
+                          type="color"
+                          value={editStatusColor}
+                          onChange={(e) => setEditStatusColor(e.target.value)}
+                          className="h-7 w-7 rounded cursor-pointer border border-border bg-transparent p-0 shrink-0"
+                          title="Escolha a cor da etapa"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setEditingStatusId(null)}
+                          className="px-2.5 py-1 rounded text-[11px] bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isSavingStatusEdit || !editStatusName.trim()}
+                          onClick={() => handleSaveStatusEdit(st.id)}
+                          className="px-3 py-1 rounded text-[11px] font-semibold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer disabled:opacity-50"
+                        >
+                          {isSavingStatusEdit ? 'Salvando...' : 'Salvar'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div
                     key={st.id}
-                    className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border"
+                    className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border hover:border-border/80 transition-colors"
                   >
                     <div className="flex items-center gap-2.5">
                       <div
-                        className="h-3 w-3 rounded-full"
+                        className="h-3 w-3 rounded-full shrink-0 shadow-xs"
                         style={{ backgroundColor: st.color }}
                       />
                       <span className="text-xs font-bold text-foreground">{st.name}</span>
@@ -1351,10 +1427,17 @@ export function TasksPage() {
                       <span className="text-[11px] font-mono text-muted-foreground bg-secondary px-2 py-0.5 rounded-md border border-border">
                         {count} tarefa(s)
                       </span>
+                      <button
+                        onClick={() => handleStartEditStatus(st)}
+                        className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-secondary transition-colors cursor-pointer"
+                        title="Editar nome e cor da coluna"
+                      >
+                        <Edit3 className="h-3.5 w-3.5" />
+                      </button>
                       {count === 0 && statuses.length > 2 && (
                         <button
                           onClick={() => handleDeleteColumn(st.id)}
-                          className="p-1 text-muted-foreground hover:text-rose-500 transition-colors"
+                          className="p-1 rounded-md text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
                           title="Excluir coluna vazia"
                         >
                           <Trash2 className="h-3.5 w-3.5" />

@@ -482,6 +482,26 @@ export const systemSettingsSchema = z.object({
   aiGloballyEnabled: z.boolean().optional(),
   allowOrgOwnAiKeys: z.boolean().optional(),
 });
+export const adminCreateUserSchema = z.object({
+  name: trimmed(2, 120, 'Nome'),
+  email: email,
+  password: password,
+  isSuperAdmin: z.boolean().default(false),
+  organizationId: id.optional().nullable(),
+  roleId: id.optional().nullable(),
+});
+export const adminUpdateUserSchema = z.object({
+  name: trimmed(2, 120, 'Nome').optional(),
+  email: email.optional(),
+  isSuperAdmin: z.boolean().optional(),
+  disabled: z.boolean().optional(),
+});
+export const adminResetPasswordSchema = z.object({
+  newPassword: password,
+});
+export const adminSetModulesSchema = z.object({
+  enabledModules: z.array(z.string().max(40)).max(30),
+});
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -523,3 +543,7 @@ export type SupportGrantInput = z.infer<typeof supportGrantSchema>;
 export type ApiKeyInput = z.infer<typeof apiKeySchema>;
 export type WebhookInput = z.infer<typeof webhookSchema>;
 export type SmtpConfigInput = z.infer<typeof smtpConfigSchema>;
+export type AdminCreateUserInput = z.infer<typeof adminCreateUserSchema>;
+export type AdminUpdateUserInput = z.infer<typeof adminUpdateUserSchema>;
+export type AdminResetPasswordInput = z.infer<typeof adminResetPasswordSchema>;
+export type AdminSetModulesInput = z.infer<typeof adminSetModulesSchema>;
