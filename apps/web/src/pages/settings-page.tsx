@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/auth-context';
 import {
   User,
   Building,
+  Building2,
   Users,
   Shield,
   Columns3,
@@ -23,12 +24,12 @@ import {
 } from 'lucide-react';
 
 export function SettingsPage() {
-  const { user, activeOrg, refreshMe } = useAuth();
+  const { user, activeOrg, memberships, switchOrganization, refreshMe } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const currentTab = (searchParams.get('tab') as any) || 'profile';
 
-  const [tab, setTab] = useState<'profile' | 'general' | 'members' | 'roles' | 'kanban' | 'superadmin'>(
-    ['profile', 'general', 'members', 'roles', 'kanban', 'superadmin'].includes(currentTab)
+  const [tab, setTab] = useState<'profile' | 'general' | 'organizations' | 'members' | 'roles' | 'kanban' | 'superadmin'>(
+    ['profile', 'general', 'organizations', 'members', 'roles', 'kanban', 'superadmin'].includes(currentTab)
       ? currentTab
       : 'profile',
   );
@@ -38,6 +39,15 @@ export function SettingsPage() {
   const [members, setMembers] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const [statuses, setStatuses] = useState<any[]>([]);
+
+  // Criação de Nova Empresa
+  const autoCreate = searchParams.get('create') === 'true';
+  const [showCreateOrgModal, setShowCreateOrgModal] = useState(autoCreate);
+  const [newOrgName, setNewOrgName] = useState('');
+  const [newOrgTimezone, setNewOrgTimezone] = useState('America/Sao_Paulo');
+  const [creatingOrg, setCreatingOrg] = useState(false);
+  const [orgCreateSuccess, setOrgCreateSuccess] = useState(false);
+  const [orgCreateError, setOrgCreateError] = useState<string | null>(null);
 
   // Perfil
   const [userName, setUserName] = useState(user?.name || '');
@@ -166,6 +176,33 @@ export function SettingsPage() {
       setPasswordError(err.message || 'Erro ao alterar senha. Verifique sua senha atual.');
     } finally {
       setPasswordSaving(false);
+    }
+  };
+
+  const handleCreateOrganization = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newOrgName.trim()) {
+      setOrgCreateError('O nome da empresa é obrigatório.');
+      return;
+    }
+    setOrgCreateError(null);
+    setCreatingOrg(true);
+    try {
+      const res: any = await api.post('/organizations', {
+        name: newOrgName.trim(),
+        timezone: newOrgTimezone || 'America/Sao_Paulo',
+      });
+      setNewOrgName('');
+      setOrgCreateSuccess(true);
+      setShowCreateOrgModal(false);
+      await refreshMe();
+      if (res?.id) {
+        switchOrganization(res.id);
+      }
+    } catch (err: any) {
+      setOrgCreateError(err.message || 'Erro ao criar empresa. Verifique os dados e tente novamente.');
+    } finally {
+      setCreatingOrg(false);
     }
   };
 
@@ -300,7 +337,18 @@ export function SettingsPage() {
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
-          <Building className="h-4 w-4" /> Empresa
+          <Building className="h-4 w-4" /> Dados da Empresa
+        </button>
+
+        <button
+          onClick={() => setTabAndQuery('organizations')}
+          className={`pb-2.5 border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
+            tab === 'organizations'
+              ? 'border-primary text-primary font-bold'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Building2 className="h-4 w-4" /> Minhas Empresas ({memberships.length})
         </button>
 
         <button
@@ -576,6 +624,179 @@ export function SettingsPage() {
               <span className="text-muted-foreground">Seu Papel Atual:</span>
               <span className="font-semibold text-primary">{activeOrg?.roleName || '—'}</span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: MINHAS EMPRESAS (MULTI-TENANT) */}
+      {tab === 'organizations' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-card border border-border rounded-2xl p-6 shadow-xs">
+            <div>
+              <div className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-primary" />
+                <h3 className="text-base font-bold text-foreground">Gestão de Empresas & Workspaces</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                O LoboFlow é nativamente multiempresa. Crie novos workspaces com pipelines, tarefas e equipes isoladas.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setShowCreateOrgModal(true);
+                setOrgCreateError(null);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold shadow-md transition-all cursor-pointer shrink-0"
+            >
+              <Plus className="h-4 w-4" /> Nova Empresa
+            </button>
+          </div>
+
+          {/* Modal / Formulário de Criação de Empresa */}
+          {showCreateOrgModal && (
+            <div className="bg-card border-2 border-primary/40 rounded-2xl p-6 shadow-lg space-y-4 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between pb-3 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-primary/20 text-primary flex items-center justify-center font-bold">
+                    <Plus className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-foreground">Cadastrar Nova Empresa</h4>
+                    <p className="text-[11px] text-muted-foreground">
+                      Uma nova organização será provisionada com permissões, cargos e pipelines iniciais.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateOrgModal(false)}
+                  className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer"
+                >
+                  <Trash2 className="h-4 w-4 rotate-45" />
+                </button>
+              </div>
+
+              {orgCreateError && (
+                <div className="p-3 rounded-xl bg-destructive/15 border border-destructive/30 text-destructive text-xs flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{orgCreateError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleCreateOrganization} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold mb-1">Nome da Empresa *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex.: LoboAds Performance, Filial SP, Cliente XPTO"
+                      value={newOrgName}
+                      onChange={(e) => setNewOrgName(e.target.value)}
+                      className="w-full bg-secondary/50 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold mb-1">Fuso Horário Padrão</label>
+                    <input
+                      type="text"
+                      value={newOrgTimezone}
+                      onChange={(e) => setNewOrgTimezone(e.target.value)}
+                      placeholder="America/Sao_Paulo"
+                      className="w-full bg-secondary/50 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateOrgModal(false)}
+                    className="px-4 py-2 text-xs font-medium rounded-xl border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={creatingOrg}
+                    className="px-5 py-2 text-xs font-semibold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {creatingOrg ? 'Criando Empresa...' : 'Criar e Acessar Empresa'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* Lista de Empresas Disponíveis */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {memberships.map((m) => {
+              const isActive = m.organizationId === activeOrg?.organizationId;
+              return (
+                <div
+                  key={m.organizationId}
+                  className={`p-5 rounded-2xl border transition-all ${
+                    isActive
+                      ? 'bg-primary/5 border-primary shadow-xs'
+                      : 'bg-card border-border hover:border-border/80'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`h-10 w-10 rounded-xl flex items-center justify-center font-bold text-sm uppercase ${
+                          isActive
+                            ? 'bg-primary text-primary-foreground shadow-md'
+                            : 'bg-secondary text-foreground'
+                        }`}
+                      >
+                        {m.organizationName?.[0] || 'E'}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-bold text-foreground">{m.organizationName}</h4>
+                          {isActive && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/20 text-primary">
+                              Ativa
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                          slug: {m.organizationSlug}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">Papel:</span>
+                      <span className="font-semibold text-foreground px-2 py-0.5 rounded-md bg-secondary">
+                        {m.roleName}
+                      </span>
+                      {m.isOwner && (
+                        <span className="text-[10px] text-amber-500 font-semibold">
+                          (Dono)
+                        </span>
+                      )}
+                    </div>
+
+                    {isActive ? (
+                      <span className="text-xs font-semibold text-primary flex items-center gap-1">
+                        <Check className="h-3.5 w-3.5" /> Workspace Atual
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => switchOrganization(m.organizationId)}
+                        className="px-3 py-1.5 rounded-lg bg-secondary hover:bg-primary hover:text-primary-foreground text-foreground text-xs font-semibold transition-all cursor-pointer"
+                      >
+                        Alternar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

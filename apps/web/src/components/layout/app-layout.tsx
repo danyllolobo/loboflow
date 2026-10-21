@@ -15,6 +15,7 @@ import {
   Sun,
   Moon,
   ChevronDown,
+  Plus,
   FileText,
   TrendingUp,
   Search,
@@ -108,6 +109,16 @@ export function AppLayout() {
                       </span>
                     </button>
                   ))}
+                </div>
+                <div className="pt-1 mt-1 border-t border-border/60">
+                  <NavLink
+                    to="/settings?tab=organizations&create=true"
+                    onClick={() => setOrgDropdownOpen(false)}
+                    className="w-full text-left px-2.5 py-1.5 text-xs rounded-md flex items-center gap-2 text-primary hover:bg-primary/10 font-semibold transition-colors cursor-pointer"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Nova Empresa</span>
+                  </NavLink>
                 </div>
               </div>
             </>

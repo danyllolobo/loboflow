@@ -35,6 +35,7 @@ export function JarvisDrawer({
   onClose: () => void;
 }) {
   const { user } = useAuth();
+  const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -80,65 +81,34 @@ export function JarvisDrawer({
     setIsProcessing(true);
 
     try {
-      // Chamada rápida à rota de métricas do dashboard para alimentar a resposta inteligente
-      const metrics: any = await api.get('/dashboard');
+      const response: any = await api.post('/ai/chat', {
+        conversationId,
+        message: text,
+      });
 
-      let reply = '';
-      let toolExecution: Message['toolExecution'] = undefined;
-      let references: Message['references'] = [];
-
-      const lower = text.toLowerCase();
-      if (lower.includes('prioridade') || lower.includes('hoje')) {
-        toolExecution = { tool: 'list_due_today', level: 1, status: 'succeeded' };
-        if (metrics.dueTodayTasks?.length > 0) {
-          reply = `Você tem **${metrics.dueTodayTasks.length} tarefa(s)** com entrega prevista para hoje:\n` +
-            metrics.dueTodayTasks.map((t: any) => `• **#${t.number} ${t.title}** (Prioridade: ${t.priority})`).join('\n');
-          references = metrics.dueTodayTasks.map((t: any) => ({ type: 'Task', id: t.id, label: `#${t.number} ${t.title}` }));
-        } else {
-          reply = 'Nenhuma tarefa com vencimento para hoje! Excelente momento para adiantar projetos em andamento ou revisar demandas da semana.';
-        }
-      } else if (lower.includes('atrasad') || lower.includes('risco')) {
-        toolExecution = { tool: 'get_overdue_tasks', level: 1, status: 'succeeded' };
-        if (metrics.overdueTasks?.length > 0) {
-          reply = `Atenção: identifiquei **${metrics.overdueTasks.length} tarefa(s) atrasadas** na organização:\n` +
-            metrics.overdueTasks.map((t: any) => `• **#${t.number} ${t.title}** (Venceu em: ${new Date(t.dueDate).toLocaleDateString('pt-BR')})`).join('\n');
-          references = metrics.overdueTasks.map((t: any) => ({ type: 'Task', id: t.id, label: `#${t.number} ${t.title}` }));
-        } else {
-          reply = 'Parabéns! Nenhuma tarefa está em atraso na organização no momento.';
-        }
-      } else if (lower.includes('projeto') || lower.includes('progresso')) {
-        toolExecution = { tool: 'get_projects_summary', level: 1, status: 'succeeded' };
-        if (metrics.projects?.length > 0) {
-          reply = `Aqui está o resumo dos projetos ativos:\n` +
-            metrics.projects.map((p: any) => `• **${p.name}**: ${p.progressPercent}% concluído (${p.completedTasks}/${p.totalTasks} tarefas)`).join('\n');
-        } else {
-          reply = 'Nenhum projeto ativo cadastrado. Deseja que eu auxilie na criação do primeiro projeto da empresa?';
-        }
-      } else if (lower.includes('sobrecarregad') || lower.includes('equipe')) {
-        toolExecution = { tool: 'get_team_workload', level: 1, status: 'succeeded' };
-        reply = `Distribuição atual de carga de trabalho:\n` +
-          metrics.workload.map((w: any) => `• **${w.name}**: ${w.openTasksCount} tarefa(s) em aberto`).join('\n');
-      } else {
-        reply = `Compreendi seu comando: "${text}". O LoboFlow está monitorando sua organização ativamente com isolamento total e regras operacionais. Você pode me pedir relatórios, verificação de prazos ou status de qualquer tarefa.`;
+      if (response?.conversationId) {
+        setConversationId(response.conversationId);
       }
 
+      if (response?.message) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: response.message.id,
+            role: 'assistant',
+            content: response.message.content,
+            toolExecution: response.message.toolExecution,
+            references: response.message.references,
+          },
+        ]);
+      }
+    } catch (err: any) {
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: reply,
-          toolExecution,
-          references,
-        },
-      ]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: 'Desculpe, tive uma oscilação momentânea ao consultar a base de dados. Por favor, tente novamente.',
+          content: `Não foi possível processar a solicitação no momento: ${err.message || 'Verifique a conexão com o servidor.'}`,
         },
       ]);
     } finally {

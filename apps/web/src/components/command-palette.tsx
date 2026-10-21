@@ -8,6 +8,7 @@ import {
   Users2,
   FileText,
   TrendingUp,
+  Building2,
   Settings,
   Plus,
   Search,
@@ -87,6 +88,13 @@ export function CommandPalette({
                   <span>Nova Tarefa</span>
                 </Command.Item>
               )}
+              <Command.Item
+                onSelect={() => runCommand(() => navigate('/settings?tab=organizations&create=true'))}
+                className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-foreground hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors"
+              >
+                <Building2 className="h-4 w-4 text-primary" />
+                <span>Cadastrar Nova Empresa</span>
+              </Command.Item>
               {onOpenJarvis && (
                 <Command.Item
                   onSelect={() => runCommand(onOpenJarvis)}
@@ -140,6 +148,13 @@ export function CommandPalette({
               >
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 <span>Funil Comercial</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => runCommand(() => navigate('/settings?tab=organizations'))}
+                className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-foreground hover:bg-secondary cursor-pointer transition-colors"
+              >
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+                <span>Minhas Empresas</span>
               </Command.Item>
               <Command.Item
                 onSelect={() => runCommand(() => navigate('/settings'))}
