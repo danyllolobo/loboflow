@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, Outlet, useLocation, Link } from 'react-router';
+import { NavLink, Outlet, useLocation, Link, useNavigate } from 'react-router';
 import { useAuth } from '../../contexts/auth-context';
 import { useTheme } from '../../contexts/theme-context';
 import { LoboFlowLogo } from '../logo';
@@ -8,7 +8,6 @@ import {
   CheckSquare,
   FolderKanban,
   Users2,
-  Building2,
   Bot,
   Settings,
   ShieldAlert,
@@ -22,8 +21,10 @@ import {
   Menu,
   X,
   Sparkles,
+  Command as CommandIcon,
 } from 'lucide-react';
 import { JarvisDrawer } from '../jarvis/jarvis-drawer';
+import { CommandPalette } from '../command-palette';
 
 export function AppLayout() {
   const { user, activeOrg, memberships, switchOrganization, logout } = useAuth();
@@ -31,7 +32,9 @@ export function AppLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [orgDropdownOpen, setOrgDropdownOpen] = useState(false);
   const [jarvisOpen, setJarvisOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const navItems = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -50,43 +53,42 @@ export function AppLayout() {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
       {/* Sidebar Desktop */}
-      <aside className="hidden md:flex flex-col w-64 border-r border-border bg-card/60 backdrop-blur-md">
-        {/* Header da Sidebar com a Logo Oficial */}
-        <div className="flex items-center justify-between px-5 h-16 border-b border-border">
+      <aside className="hidden md:flex flex-col w-60 border-r border-border/80 bg-card/60 backdrop-blur-md">
+        {/* Header da Sidebar */}
+        <div className="flex items-center justify-between px-4 h-14 border-b border-border/70">
           <NavLink to="/dashboard" className="flex items-center gap-2">
-            <LoboFlowLogo className="h-8 w-auto max-w-[150px]" />
+            <LoboFlowLogo className="h-7 w-auto max-w-[140px]" />
           </NavLink>
         </div>
 
         {/* Seletor de Organização Multi-Tenant */}
-        <div className="p-3 border-b border-border/70 relative z-30">
+        <div className="p-2.5 border-b border-border/70 relative z-30">
           <button
             onClick={() => setOrgDropdownOpen(!orgDropdownOpen)}
-            className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-xl bg-secondary hover:bg-secondary/80 border border-border transition-all shadow-sm cursor-pointer"
+            className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs rounded-lg bg-secondary/80 hover:bg-secondary border border-border/80 transition-colors shadow-2xs cursor-pointer"
           >
-            <div className="flex items-center gap-2.5 truncate">
-              <div className="h-6 w-6 rounded-lg bg-primary/15 text-primary flex items-center justify-center font-bold text-xs uppercase">
+            <div className="flex items-center gap-2 truncate">
+              <div className="h-5 w-5 rounded bg-primary/15 text-primary flex items-center justify-center font-bold text-[10px] uppercase shrink-0">
                 {activeOrg?.organizationName?.[0] || 'L'}
               </div>
               <span className="font-semibold text-foreground truncate text-xs">
                 {activeOrg?.organizationName || 'Selecione a empresa'}
               </span>
             </div>
-            <ChevronDown className={`h-4 w-4 text-muted-foreground flex-shrink-0 transition-transform ${orgDropdownOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground flex-shrink-0 transition-transform ${orgDropdownOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {orgDropdownOpen && (
             <>
-              {/* Backdrop invisível para fechar ao clicar fora */}
               <div
                 className="fixed inset-0 z-40"
                 onClick={() => setOrgDropdownOpen(false)}
               />
-              <div className="absolute top-full left-3 right-3 mt-1.5 p-1.5 bg-card border border-border rounded-xl shadow-2xl z-50 double-bezel space-y-1">
-                <div className="px-3 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              <div className="absolute top-full left-2.5 right-2.5 mt-1 p-1 bg-card border border-border rounded-xl shadow-xl z-50 space-y-0.5">
+                <div className="px-2.5 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                   Minhas Organizações
                 </div>
-                <div className="max-h-56 overflow-y-auto space-y-0.5">
+                <div className="max-h-52 overflow-y-auto space-y-0.5">
                   {memberships.map((m) => (
                     <button
                       key={m.organizationId}
@@ -94,14 +96,14 @@ export function AppLayout() {
                         switchOrganization(m.organizationId);
                         setOrgDropdownOpen(false);
                       }}
-                      className={`w-full text-left px-3 py-2 text-xs rounded-lg flex items-center justify-between hover:bg-secondary transition-colors cursor-pointer ${
+                      className={`w-full text-left px-2.5 py-1.5 text-xs rounded-md flex items-center justify-between hover:bg-secondary transition-colors cursor-pointer ${
                         m.organizationId === activeOrg?.organizationId
                           ? 'bg-primary/10 text-primary font-semibold'
                           : 'text-foreground'
                       }`}
                     >
                       <span className="truncate">{m.organizationName}</span>
-                      <span className="text-[10px] text-muted-foreground ml-2 px-1.5 py-0.5 rounded bg-secondary/80 shrink-0">
+                      <span className="text-[10px] text-muted-foreground ml-2 px-1 rounded bg-secondary/80 shrink-0">
                         {m.roleName}
                       </span>
                     </button>
@@ -112,8 +114,24 @@ export function AppLayout() {
           )}
         </div>
 
+        {/* Botão de Busca Rápida (Cmd+K) */}
+        <div className="px-2.5 pt-2">
+          <button
+            onClick={() => setCommandPaletteOpen(true)}
+            className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs rounded-lg bg-secondary/40 hover:bg-secondary border border-border/60 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <Search className="h-3.5 w-3.5" />
+              <span>Buscar...</span>
+            </div>
+            <kbd className="text-[10px] font-mono bg-background px-1.5 py-0.5 rounded border border-border/80">
+              ⌘K
+            </kbd>
+          </button>
+        </div>
+
         {/* Navegação Principal */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-2.5 py-3 space-y-0.5 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname.startsWith(item.to);
@@ -121,72 +139,68 @@ export function AppLayout() {
               <NavLink
                 key={item.to}
                 to={item.to}
-                className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
+                className={`flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium rounded-lg transition-all ${
                   isActive
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                    ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
+                    : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-4 w-4 shrink-0" />
                 <span>{item.label}</span>
               </NavLink>
             );
           })}
 
-          {/* Botão de Destaque para o Jarvis */}
-          <div className="pt-4">
+          {/* Destaque para Jarvis */}
+          <div className="pt-3">
             <button
               onClick={() => setJarvisOpen(true)}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-gradient-to-r from-sky-500/10 via-cyan-500/10 to-blue-500/10 border border-sky-500/30 text-sky-400 hover:border-sky-400 transition-all group"
+              className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg bg-gradient-to-r from-sky-500/10 to-cyan-500/10 border border-sky-500/20 text-sky-400 hover:border-sky-400/50 transition-all cursor-pointer group"
             >
-              <div className="flex items-center gap-2.5">
-                <div className="h-7 w-7 rounded-md bg-sky-500/20 text-sky-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Bot className="h-4 w-4" />
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-6 rounded-md bg-sky-500/20 text-sky-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Bot className="h-3.5 w-3.5" />
                 </div>
                 <div className="text-left">
-                  <div className="text-xs font-bold leading-none">Jarvis IA</div>
-                  <div className="text-[10px] text-muted-foreground leading-tight">Assistente Operacional</div>
+                  <div className="text-xs font-semibold leading-tight text-foreground group-hover:text-sky-400 transition-colors">Jarvis IA</div>
+                  <div className="text-[10px] text-muted-foreground leading-tight">Copilot Operacional</div>
                 </div>
               </div>
-              <Sparkles className="h-3.5 w-3.5 text-sky-400 animate-pulse" />
+              <Sparkles className="h-3 w-3 text-sky-400" />
             </button>
           </div>
         </nav>
 
         {/* Footer do Usuário & Tema */}
-        <div className="p-3 border-t border-border flex items-center justify-between">
+        <div className="p-2.5 border-t border-border/70 flex items-center justify-between">
           <Link
             to="/settings?tab=profile"
-            className="flex items-center gap-2.5 truncate flex-1 hover:opacity-80 transition-opacity p-1 rounded-lg hover:bg-secondary/50 cursor-pointer"
+            className="flex items-center gap-2 truncate flex-1 hover:opacity-90 transition-opacity p-1 rounded-md hover:bg-secondary/50 cursor-pointer"
             title="Editar meu perfil e senha"
           >
-            <div className="h-8 w-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs uppercase shrink-0">
+            <div className="h-7 w-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs uppercase shrink-0">
               {user?.name?.[0] || 'U'}
             </div>
             <div className="truncate text-left">
-              <div className="text-sm font-medium truncate text-foreground">{user?.name}</div>
-              <div className="text-[11px] text-muted-foreground truncate">{user?.email}</div>
+              <div className="text-xs font-medium truncate text-foreground leading-tight">{user?.name}</div>
+              <div className="text-[10px] text-muted-foreground truncate">{user?.email}</div>
             </div>
           </Link>
 
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-0.5 shrink-0">
             <button
               onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-              title="Alternar tema claro/escuro"
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+              title="Alternar tema"
             >
-              {resolvedTheme === 'dark' ? (
-                <Sun className="h-4 w-4" />
-              ) : (
-                <Moon className="h-4 w-4" />
-              )}
+              {resolvedTheme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
             </button>
             <button
               onClick={logout}
-              className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              className="p-1.5 rounded-md text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
               title="Sair"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
@@ -200,6 +214,12 @@ export function AppLayout() {
             <LoboFlowLogo className="h-7 w-auto max-w-[120px]" />
           </NavLink>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCommandPaletteOpen(true)}
+              className="p-2 text-muted-foreground hover:text-foreground"
+            >
+              <Search className="h-4 w-4" />
+            </button>
             <button
               onClick={() => setJarvisOpen(true)}
               className="p-2 text-sky-400 bg-sky-500/10 rounded-md"
@@ -245,13 +265,21 @@ export function AppLayout() {
         )}
 
         {/* Viewport da Página */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-7">
           <Outlet />
         </main>
       </div>
 
       {/* Drawer do Jarvis IA */}
       <JarvisDrawer open={jarvisOpen} onClose={() => setJarvisOpen(false)} />
+
+      {/* Paleta Global de Comandos (Cmd+K) */}
+      <CommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+        onOpenCreateTask={() => navigate('/tasks?create=true')}
+        onOpenJarvis={() => setJarvisOpen(true)}
+      />
     </div>
   );
 }

@@ -111,7 +111,7 @@ export function DashboardPage() {
             <span>Ver Projetos</span>
           </NavLink>
           <NavLink
-            to="/tasks"
+            to="/tasks?create=true"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold transition-all shadow-md hover:shadow-primary/25 cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5" />
