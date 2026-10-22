@@ -88,19 +88,26 @@ function renderCommentBody(text: string) {
 }
 
 function renderActivityDescription(activity: any) {
-  const action = activity.action;
-  const changes = activity.changes || {};
+  const action = activity?.action || '';
+  const changes = activity?.changes || {};
 
   switch (action) {
     case 'task.created':
       return 'criou esta demanda';
+    case 'task.status_changed':
+      if (changes.from && changes.to) {
+        return `moveu de "${changes.from}" para "${changes.to}"`;
+      }
+      return 'atualizou a etapa do fluxo';
     case 'task.updated':
       if (changes.statusId) return 'atualizou o status da demanda';
       if (changes.priority) return `alterou a prioridade para ${changes.priority}`;
       if (changes.dueDate !== undefined) {
-        return changes.dueDate
-          ? `definiu o prazo para ${changes.dueDate.split('T')[0]}`
-          : 'removeu o prazo de entrega';
+        if (!changes.dueDate) return 'removeu o prazo de entrega';
+        const dateStr = typeof changes.dueDate === 'string'
+          ? changes.dueDate.split('T')[0]
+          : '';
+        return `definiu o prazo para ${dateStr}`;
       }
       if (changes.projectId !== undefined) return 'alterou o projeto vinculado';
       if (changes.clientId !== undefined) return 'alterou o cliente vinculado';
@@ -120,7 +127,9 @@ function renderActivityDescription(activity: any) {
     case 'task.archived':
       return 'arquivou a demanda';
     default:
-      return action.replace('task.', '');
+      return typeof action === 'string' && action
+        ? action.replace('task.', '')
+        : 'atualizou a demanda';
   }
 }
 
@@ -239,9 +248,8 @@ export function TaskDrawer({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose, showMentionPopover, editingChecklistId, editingCommentId]);
 
-  if (!taskId) return null;
-
   const handleSaveProperties = async (updates: Partial<any>) => {
+    if (!taskId) return;
     try {
       setIsSaving(true);
       const updated = await api.patch(`/tasks/${taskId}`, updates);
@@ -261,20 +269,20 @@ export function TaskDrawer({
   };
 
   const availableProjects = clientId
-    ? projects.filter((p) => p.clientId === clientId)
-    : projects;
+    ? (projects || []).filter((p) => p.clientId === clientId)
+    : (projects || []);
 
   const handleClientChange = (newCId: string) => {
     setClientId(newCId);
     let nextPId = projectId;
     if (newCId) {
-      const currentProj = projects.find((p) => p.id === projectId);
+      const currentProj = (projects || []).find((p) => p.id === projectId);
       if (currentProj && currentProj.clientId !== newCId) {
         nextPId = '';
         setProjectId('');
       }
     } else {
-      const currentProj = projects.find((p) => p.id === projectId);
+      const currentProj = (projects || []).find((p) => p.id === projectId);
       if (currentProj?.clientId) {
         nextPId = '';
         setProjectId('');
@@ -290,7 +298,7 @@ export function TaskDrawer({
     setProjectId(newPId);
     let nextCId = clientId;
     if (newPId) {
-      const proj = projects.find((p) => p.id === newPId);
+      const proj = (projects || []).find((p) => p.id === newPId);
       if (proj?.clientId) {
         nextCId = proj.clientId;
         setClientId(proj.clientId);
@@ -304,6 +312,7 @@ export function TaskDrawer({
 
   // Subtarefas (Checklist) Handlers
   const handleToggleChecklist = async (itemId: string, done: boolean) => {
+    if (!taskId) return;
     try {
       await api.patch(`/tasks/${taskId}/checklist/${itemId}`, { done });
       const updatedTask = await api.get(`/tasks/${taskId}`);
@@ -317,7 +326,7 @@ export function TaskDrawer({
 
   const handleAddChecklist = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!checklistText.trim()) return;
+    if (!taskId || !checklistText.trim()) return;
 
     try {
       setIsAddingChecklist(true);
@@ -337,6 +346,7 @@ export function TaskDrawer({
 
   const handleDeleteChecklist = async (itemId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!taskId) return;
     try {
       await api.delete(`/tasks/${taskId}/checklist/${itemId}`);
       const updatedTask = await api.get(`/tasks/${taskId}`);
@@ -349,7 +359,7 @@ export function TaskDrawer({
   };
 
   const handleSaveEditChecklist = async (itemId: string) => {
-    if (!editingChecklistTitle.trim()) return;
+    if (!taskId || !editingChecklistTitle.trim()) return;
     try {
       await api.patch(`/tasks/${taskId}/checklist/${itemId}`, {
         title: editingChecklistTitle.trim(),
@@ -366,7 +376,7 @@ export function TaskDrawer({
   // Comentários Handlers
   const handleAddComment = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!commentText.trim() || isSubmittingComment) return;
+    if (!taskId || !commentText.trim() || isSubmittingComment) return;
 
     try {
       setIsSubmittingComment(true);
@@ -392,7 +402,7 @@ export function TaskDrawer({
   };
 
   const handleSaveEditComment = async (commentId: string) => {
-    if (!editCommentBody.trim()) return;
+    if (!taskId || !editCommentBody.trim()) return;
     try {
       await api.patch(`/tasks/${taskId}/comments/${commentId}`, {
         body: editCommentBody.trim(),
@@ -407,6 +417,7 @@ export function TaskDrawer({
   };
 
   const handleDeleteComment = async (commentId: string) => {
+    if (!taskId) return;
     if (!confirm('Deseja excluir este comentário permanentemente?')) return;
     try {
       await api.delete(`/tasks/${taskId}/comments/${commentId}`);
@@ -427,6 +438,7 @@ export function TaskDrawer({
   };
 
   const handleArchive = async () => {
+    if (!taskId) return;
     if (!confirm('Deseja realmente arquivar esta tarefa?')) return;
     try {
       await api.delete(`/tasks/${taskId}`);
@@ -489,6 +501,8 @@ export function TaskDrawer({
         (m.user?.email || '').toLowerCase().includes(q),
     );
   }, [members, mentionSearch]);
+
+  if (!taskId) return null;
 
   return (
     <div

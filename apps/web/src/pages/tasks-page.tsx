@@ -556,15 +556,17 @@ export function TasksPage() {
       )}
 
       {/* Drawer Lateral de Detalhes da Tarefa */}
-      <TaskDrawer
-        taskId={selectedTaskId}
-        onClose={() => setSelectedTaskId(null)}
-        onTaskUpdated={loadData}
-        statuses={statuses}
-        projects={projects}
-        clients={clients}
-        members={members}
-      />
+      {selectedTaskId && (
+        <TaskDrawer
+          taskId={selectedTaskId}
+          onClose={() => setSelectedTaskId(null)}
+          onTaskUpdated={loadData}
+          statuses={statuses}
+          projects={projects}
+          clients={clients}
+          members={members}
+        />
+      )}
 
       {/* Modal: Nova Tarefa Completa */}
       {newModalOpen && (

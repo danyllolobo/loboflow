@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { JarvisDrawer } from '../jarvis/jarvis-drawer';
 import { CommandPalette } from '../command-palette';
+import { ErrorBoundary } from '../common/error-boundary';
 
 export function AppLayout() {
   const { user, activeOrg, memberships, switchOrganization, logout } = useAuth();
@@ -277,7 +278,9 @@ export function AppLayout() {
 
         {/* Viewport da Página */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-7">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
 

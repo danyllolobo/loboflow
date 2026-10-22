@@ -56,10 +56,10 @@ export function checkDateStatus(dateValue: string | Date | null | undefined): {
   };
 }
 
-export function formatRelativeTime(dateValue: string | Date | null | undefined): string {
+export function formatRelativeTime(dateValue: string | Date | number | null | undefined): string {
   if (!dateValue) return '';
-  const date = typeof dateValue === 'string' ? new Date(dateValue) : dateValue;
-  if (isNaN(date.getTime())) return '';
+  const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
+  if (!date || isNaN(date.getTime())) return '';
   const now = new Date();
   const diffInSeconds = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
 
