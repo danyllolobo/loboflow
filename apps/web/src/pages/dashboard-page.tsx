@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/auth-context';
 import { NavLink, useNavigate } from 'react-router';
+import { formatDateOnly } from '../lib/date-utils';
 import {
   AlertCircle,
   Calendar,
@@ -387,7 +388,7 @@ export function DashboardPage() {
                       </span>
                     </div>
                     <span className="text-xs font-bold text-rose-500 shrink-0">
-                      Venceu {new Date(t.dueDate).toLocaleDateString('pt-BR')}
+                      Venceu {formatDateOnly(t.dueDate)}
                     </span>
                   </div>
                 ))}

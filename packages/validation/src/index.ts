@@ -32,8 +32,23 @@ const trimmed = (min: number, max: number, label = 'Campo') =>
     .max(max, `${label} deve ter no máximo ${max} caracteres`);
 const optionalText = (max: number) => z.string().trim().max(max).optional().nullable();
 export const email = z.string().trim().toLowerCase().pipe(z.email({ message: 'E-mail inválido' }));
-/** Data sem horário: AAAA-MM-DD. */
-export const dateOnly = z.iso.date({ message: 'Data inválida (use AAAA-MM-DD)' });
+/** Data sem horário: AAAA-MM-DD. Aceita também ISO datetime ou string vazia (convertida para null). */
+export const dateOnly = z.preprocess((val) => {
+  if (val === undefined) return undefined;
+  if (val === '' || val === null) return null;
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) return null;
+    if (trimmed.includes('T')) {
+      return trimmed.split('T')[0];
+    }
+    return trimmed;
+  }
+  if (val instanceof Date && !isNaN(val.getTime())) {
+    return val.toISOString().split('T')[0];
+  }
+  return val;
+}, z.iso.date({ message: 'Data inválida (use AAAA-MM-DD)' }));
 export const dateTime = z.iso.datetime({ offset: true, message: 'Data/hora inválida' });
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Cor inválida');
 export const password = z
@@ -522,6 +537,7 @@ export type ChangeDealStageInput = z.infer<typeof changeDealStageSchema>;
 export type DealInteractionInput = z.infer<typeof dealInteractionSchema>;
 export type CreateContractInput = z.infer<typeof createContractSchema>;
 export type UpdateContractInput = z.infer<typeof updateContractSchema>;
+export type EndContractInput = z.infer<typeof endContractSchema>;
 export type CreateScriptInput = z.infer<typeof createScriptSchema>;
 export type UpdateScriptInput = z.infer<typeof updateScriptSchema>;
 export type DocumentMetadataInput = z.infer<typeof documentMetadataSchema>;

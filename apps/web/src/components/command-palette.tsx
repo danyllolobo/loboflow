@@ -95,6 +95,13 @@ export function CommandPalette({
                 <Building2 className="h-4 w-4 text-primary" />
                 <span>Cadastrar Nova Empresa</span>
               </Command.Item>
+              <Command.Item
+                onSelect={() => runCommand(() => navigate('/commercial?tab=contracts'))}
+                className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-foreground hover:bg-emerald-500/10 hover:text-emerald-500 cursor-pointer transition-colors"
+              >
+                <FileText className="h-4 w-4 text-emerald-500" />
+                <span>Gestão de Contratos & MRR</span>
+              </Command.Item>
               {onOpenJarvis && (
                 <Command.Item
                   onSelect={() => runCommand(onOpenJarvis)}
@@ -148,6 +155,13 @@ export function CommandPalette({
               >
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 <span>Funil Comercial</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => runCommand(() => navigate('/commercial?tab=contracts'))}
+                className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-foreground hover:bg-secondary cursor-pointer transition-colors"
+              >
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span>Contratos & MRR</span>
               </Command.Item>
               <Command.Item
                 onSelect={() => runCommand(() => navigate('/settings?tab=organizations'))}

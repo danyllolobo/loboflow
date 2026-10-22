@@ -13,6 +13,7 @@ import { HealthModule } from './health/health.module';
 import { ContentScriptsModule } from './content-scripts/content-scripts.module';
 import { DealsModule } from './deals/deals.module';
 import { AiModule } from './ai/ai.module';
+import { ContractsModule } from './contracts/contracts.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { AiModule } from './ai/ai.module';
     ContentScriptsModule,
     DealsModule,
     AiModule,
+    ContractsModule,
   ],
   providers: [
     {

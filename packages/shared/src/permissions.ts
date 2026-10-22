@@ -249,6 +249,7 @@ export const DEFAULT_ROLE_TEMPLATES: RoleTemplate[] = [
       ...all(['team.view', 'team.invite']),
       ...all(['documents.view', 'documents.create', 'documents.edit', 'documents.share']),
       ...byModule('scripts'),
+      ...byModule('contracts'),
       ...byModule('reports'),
       ...all(['automations.view', 'automations.manage', 'integrations.view', 'ai.use', 'settings.view']),
     ],
@@ -272,7 +273,7 @@ export const DEFAULT_ROLE_TEMPLATES: RoleTemplate[] = [
       ...all(['dashboard.view', 'tasks.view', 'tasks.create', 'tasks.edit', 'tasks.change_status', 'projects.view']),
       ...byModule('clients'),
       ...byModule('commercial'),
-      ...all(['contracts.view', 'documents.view', 'documents.create', 'team.view', 'reports.view', 'ai.use']),
+      ...all(['contracts.view', 'contracts.create', 'contracts.edit', 'documents.view', 'documents.create', 'team.view', 'reports.view', 'ai.use']),
     ],
   },
   {

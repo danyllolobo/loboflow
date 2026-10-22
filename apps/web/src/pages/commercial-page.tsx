@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router';
 import { api } from '../lib/api';
+import { ContractsView } from '../components/commercial/contracts-view';
 import {
   TrendingUp,
   Plus,
@@ -269,6 +271,25 @@ function DroppableDealColumn({
 }
 
 export function CommercialPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentTab = (searchParams.get('tab') as 'pipeline' | 'contracts') || 'pipeline';
+  const [activeTab, setActiveTab] = useState<'pipeline' | 'contracts'>(
+    ['pipeline', 'contracts'].includes(currentTab) ? currentTab : 'pipeline',
+  );
+  const [triggerNewContract, setTriggerNewContract] = useState(false);
+
+  const setTabAndQuery = (newTab: 'pipeline' | 'contracts') => {
+    setActiveTab(newTab);
+    setSearchParams({ tab: newTab });
+  };
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab') as 'pipeline' | 'contracts';
+    if (tabParam && (tabParam === 'pipeline' || tabParam === 'contracts')) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
+
   const [deals, setDeals] = useState<DealItem[]>([]);
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [members, setMembers] = useState<MemberOption[]>([]);
@@ -611,37 +632,81 @@ export function CommercialPage() {
           <div className="flex items-center gap-2 mb-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-bold tracking-[0.2em] uppercase bg-primary/10 text-primary border border-primary/20">
               <Target className="w-3 h-3" />
-              Gestão Comercial
+              Gestão Comercial & Retenção
             </span>
             <span className="text-xs text-muted-foreground font-medium">
-              Pipeline & Conversão
+              {activeTab === 'pipeline' ? 'Pipeline & Conversão' : 'Receita Recorrente & Churn'}
             </span>
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
-            Funil de Vendas
+            {activeTab === 'pipeline' ? 'Funil de Vendas' : 'Gestão de Contratos & MRR'}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Gestão visual de oportunidades, propostas, negociações e previsão de receita.
+            {activeTab === 'pipeline'
+              ? 'Gestão visual de oportunidades, propostas, negociações e previsão de receita.'
+              : 'Acompanhe receita recorrente (MRR), vigências, renovações e auditoria estruturada de cancelamentos.'}
           </p>
         </div>
 
         {/* Botão de Criação Island Button */}
+        {activeTab === 'pipeline' ? (
+          <button
+            onClick={() => {
+              resetForm();
+              setIsCreateModalOpen(true);
+            }}
+            className="group relative inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-primary text-primary-foreground font-semibold text-sm shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-300 cursor-pointer"
+          >
+            <span>Nova Oportunidade</span>
+            <span className="w-6 h-6 rounded-full bg-primary-foreground/15 flex items-center justify-center transition-transform group-hover:scale-110">
+              <Plus className="w-4 h-4 text-primary-foreground" />
+            </span>
+          </button>
+        ) : (
+          <button
+            onClick={() => setTriggerNewContract((prev) => !prev)}
+            className="group relative inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-primary text-primary-foreground font-semibold text-sm shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-300 cursor-pointer"
+          >
+            <span>Novo Contrato</span>
+            <span className="w-6 h-6 rounded-full bg-primary-foreground/15 flex items-center justify-center transition-transform group-hover:scale-110">
+              <Plus className="w-4 h-4 text-primary-foreground" />
+            </span>
+          </button>
+        )}
+      </div>
+
+      {/* Tabs Switcher: Pipeline vs Contratos */}
+      <div className="flex items-center gap-2 border-b border-border/80 pb-3">
         <button
-          onClick={() => {
-            resetForm();
-            setIsCreateModalOpen(true);
-          }}
-          className="group relative inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-primary text-primary-foreground font-semibold text-sm shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-300"
+          onClick={() => setTabAndQuery('pipeline')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            activeTab === 'pipeline'
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'bg-secondary/60 text-muted-foreground hover:text-foreground'
+          }`}
         >
-          <span>Nova Oportunidade</span>
-          <span className="w-6 h-6 rounded-full bg-primary-foreground/15 flex items-center justify-center transition-transform group-hover:scale-110">
-            <Plus className="w-4 h-4 text-primary-foreground" />
-          </span>
+          <TrendingUp className="w-4 h-4" />
+          <span>Pipeline de Negociações</span>
+        </button>
+        <button
+          onClick={() => setTabAndQuery('contracts')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            activeTab === 'contracts'
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'bg-secondary/60 text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          <span>Contratos & MRR</span>
         </button>
       </div>
 
-      {/* KPI Summary — Double-Bezel Design */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {activeTab === 'contracts' ? (
+        <ContractsView onOpenNewContractTrigger={triggerNewContract} />
+      ) : (
+        <>
+          {/* KPI Summary — Double-Bezel Design */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-1 rounded-3xl bg-border/40">
           <div className="p-5 rounded-[calc(1.5rem-4px)] bg-card border border-border/50 flex flex-col justify-between">
             <div className="flex items-center justify-between">
@@ -821,6 +886,8 @@ export function CommercialPage() {
           </DragOverlay>
         </DndContext>
       )}
+    </>
+  )}
 
       {/* Modal: Nova Oportunidade */}
       {isCreateModalOpen && (

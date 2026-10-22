@@ -135,15 +135,40 @@ export class TasksController {
     return this.tasksService.addComment(orgId, id, userId, input);
   }
 
+  @Patch(':id/comments/:commentId')
+  @RequirePermissions('tasks.view')
+  async updateComment(
+    @CurrentOrg('id') orgId: string,
+    @Param('id') taskId: string,
+    @Param('commentId') commentId: string,
+    @CurrentUser('id') userId: string,
+    @Body() body: unknown,
+  ) {
+    const input = commentSchema.parse(body);
+    return this.tasksService.updateComment(orgId, taskId, commentId, userId, input.body);
+  }
+
+  @Delete(':id/comments/:commentId')
+  @RequirePermissions('tasks.view')
+  async deleteComment(
+    @CurrentOrg('id') orgId: string,
+    @Param('id') taskId: string,
+    @Param('commentId') commentId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.tasksService.deleteComment(orgId, taskId, commentId, user.id, user.isSuperAdmin);
+  }
+
   @Post(':id/checklist')
   @RequirePermissions('tasks.edit')
   async addChecklistItem(
     @CurrentOrg('id') orgId: string,
     @Param('id') id: string,
+    @CurrentUser('id') userId: string,
     @Body() body: unknown,
   ) {
     const input = checklistItemSchema.parse(body);
-    return this.tasksService.addChecklistItem(orgId, id, input);
+    return this.tasksService.addChecklistItem(orgId, id, userId, input);
   }
 
   @Patch(':id/checklist/:itemId')
@@ -164,6 +189,26 @@ export class TasksController {
       input.title,
       input.done,
     );
+  }
+
+  @Delete(':id/checklist/:itemId')
+  @RequirePermissions('tasks.edit')
+  async deleteChecklistItem(
+    @CurrentOrg('id') orgId: string,
+    @Param('id') taskId: string,
+    @Param('itemId') itemId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.tasksService.deleteChecklistItem(orgId, taskId, itemId, userId);
+  }
+
+  @Get(':id/activities')
+  @RequirePermissions('tasks.view')
+  async getActivities(
+    @CurrentOrg('id') orgId: string,
+    @Param('id') taskId: string,
+  ) {
+    return this.tasksService.getActivities(orgId, taskId);
   }
 
   @Post(':id/archive')

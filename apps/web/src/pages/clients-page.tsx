@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/auth-context';
 import {
@@ -16,6 +17,7 @@ import {
   CheckCircle2,
   AlertCircle,
   FileText,
+  ExternalLink,
 } from 'lucide-react';
 import { CLIENT_STATUS_LABELS, CLIENT_STATUSES, ClientStatus } from '@loboflow/shared';
 
@@ -570,6 +572,55 @@ export function ClientsPage() {
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground">Nenhum projeto associado a este cliente ainda.</p>
+              )}
+            </div>
+
+            {/* Contratos do Cliente */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  Contratos & Recorrência ({selectedClient.contracts?.length || 0})
+                </h3>
+                <Link
+                  to="/commercial?tab=contracts"
+                  className="text-[11px] text-primary hover:underline flex items-center gap-1 font-semibold"
+                >
+                  <span>Gerenciar Contratos</span>
+                  <ExternalLink className="w-3 h-3" />
+                </Link>
+              </div>
+              {selectedClient.contracts?.length > 0 ? (
+                <div className="space-y-2">
+                  {selectedClient.contracts.map((ct: any) => (
+                    <div
+                      key={ct.id}
+                      className="p-3 bg-secondary/30 rounded-xl text-xs flex justify-between items-center border border-border/50"
+                    >
+                      <div>
+                        <span className="font-semibold text-foreground block">{ct.service}</span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {ct.monthlyValueCents
+                            ? (ct.monthlyValueCents / 100).toLocaleString('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL',
+                              }) + ' /mês'
+                            : 'Valor a definir'}
+                        </span>
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          ct.status === 'ACTIVE'
+                            ? 'bg-emerald-500/15 text-emerald-500'
+                            : 'bg-rose-500/15 text-rose-400'
+                        }`}
+                      >
+                        {ct.status === 'ACTIVE' ? 'Ativo' : 'Encerrado'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Nenhum contrato ativo vinculado a este cliente.</p>
               )}
             </div>
 

@@ -8,7 +8,6 @@ import {
   Building2,
   Users,
   Shield,
-  Columns3,
   ShieldAlert,
   Key,
   Check,
@@ -20,7 +19,6 @@ import {
   ExternalLink,
   Sparkles,
   AlertCircle,
-  Edit3,
 } from 'lucide-react';
 
 export function SettingsPage() {
@@ -28,8 +26,8 @@ export function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const currentTab = (searchParams.get('tab') as any) || 'profile';
 
-  const [tab, setTab] = useState<'profile' | 'general' | 'organizations' | 'members' | 'roles' | 'kanban' | 'superadmin'>(
-    ['profile', 'general', 'organizations', 'members', 'roles', 'kanban', 'superadmin'].includes(currentTab)
+  const [tab, setTab] = useState<'profile' | 'general' | 'organizations' | 'members' | 'roles' | 'superadmin'>(
+    ['profile', 'general', 'organizations', 'members', 'roles', 'superadmin'].includes(currentTab)
       ? currentTab
       : 'profile',
   );
@@ -38,7 +36,6 @@ export function SettingsPage() {
   const [org, setOrg] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
-  const [statuses, setStatuses] = useState<any[]>([]);
 
   // Criação de Nova Empresa
   const autoCreate = searchParams.get('create') === 'true';
@@ -75,17 +72,6 @@ export function SettingsPage() {
   const [inviteResult, setInviteResult] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
 
-  // Nova Coluna Kanban
-  const [newStatusName, setNewStatusName] = useState('');
-  const [newStatusColor, setNewStatusColor] = useState('#3b82f6');
-  const [statusSaving, setStatusSaving] = useState(false);
-
-  // Edição de Coluna de Status Existente
-  const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
-  const [editStatusName, setEditStatusName] = useState('');
-  const [editStatusColor, setEditStatusColor] = useState('#3b82f6');
-  const [isSavingStatusEdit, setIsSavingStatusEdit] = useState(false);
-
   const setTabAndQuery = (newTab: typeof tab) => {
     setTab(newTab);
     setSearchParams({ tab: newTab });
@@ -94,11 +80,10 @@ export function SettingsPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [orgRes, membersRes, rolesRes, statusesRes]: [any, any, any, any] = await Promise.all([
+      const [orgRes, membersRes, rolesRes]: [any, any, any] = await Promise.all([
         api.get('/organizations/current').catch(() => null),
         api.get('/organizations/current/members').catch(() => []),
         api.get('/organizations/current/roles').catch(() => []),
-        api.get('/tasks/statuses').catch(() => []),
       ]);
 
       if (orgRes) {
@@ -108,7 +93,6 @@ export function SettingsPage() {
       }
       setMembers(Array.isArray(membersRes) ? membersRes : []);
       setRoles(Array.isArray(rolesRes) ? rolesRes : []);
-      setStatuses(Array.isArray(statusesRes) ? statusesRes : []);
 
       if (rolesRes?.length > 0 && !inviteRoleId) {
         setInviteRoleId(rolesRes[0].id);
@@ -243,59 +227,6 @@ export function SettingsPage() {
     }
   };
 
-  const handleCreateStatus = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newStatusName.trim()) return;
-
-    try {
-      setStatusSaving(true);
-      await api.post('/tasks/statuses', {
-        name: newStatusName.trim(),
-        color: newStatusColor,
-      });
-      setNewStatusName('');
-      await loadData();
-    } catch (err: any) {
-      alert(err.message || 'Erro ao criar status');
-    } finally {
-      setStatusSaving(false);
-    }
-  };
-
-  const handleDeleteStatus = async (id: string, name: string) => {
-    if (!confirm(`Deseja remover a coluna "${name}"? Tarefas vinculadas impedem a exclusão.`)) return;
-    try {
-      await api.delete(`/tasks/statuses/${id}`);
-      await loadData();
-    } catch (err: any) {
-      alert(err.message || 'Erro ao excluir status');
-    }
-  };
-
-  const handleStartEditStatus = (st: any) => {
-    setEditingStatusId(st.id);
-    setEditStatusName(st.name);
-    setEditStatusColor(st.color || '#3b82f6');
-  };
-
-  const handleSaveStatusEdit = async (stId: string) => {
-    if (!editStatusName.trim()) return;
-    try {
-      setIsSavingStatusEdit(true);
-      await api.patch(`/tasks/statuses/${stId}`, {
-        name: editStatusName.trim(),
-        color: editStatusColor,
-      });
-      setStatuses((prev) =>
-        prev.map((s) => (s.id === stId ? { ...s, name: editStatusName.trim(), color: editStatusColor } : s)),
-      );
-      setEditingStatusId(null);
-    } catch (err: any) {
-      alert(err.message || 'Erro ao atualizar status');
-    } finally {
-      setIsSavingStatusEdit(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -373,16 +304,6 @@ export function SettingsPage() {
           <Shield className="h-4 w-4" /> Papéis e RBAC
         </button>
 
-        <button
-          onClick={() => setTabAndQuery('kanban')}
-          className={`pb-2.5 border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
-            tab === 'kanban'
-              ? 'border-primary text-primary font-bold'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Columns3 className="h-4 w-4" /> Colunas do Kanban
-        </button>
 
         {user?.isSuperAdmin && (
           <button
@@ -906,139 +827,7 @@ export function SettingsPage() {
         </div>
       )}
 
-      {/* TAB 5: COLUNAS DO KANBAN */}
-      {tab === 'kanban' && (
-        <div className="space-y-6">
-          <form
-            onSubmit={handleCreateStatus}
-            className="bg-card border border-border rounded-2xl p-5 shadow-xs space-y-4 max-w-xl"
-          >
-            <h3 className="text-sm font-bold flex items-center gap-2">
-              <Plus className="h-4 w-4 text-primary" /> Adicionar Nova Coluna ao Pipeline
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Crie etapas personalizadas para o fluxo de tarefas da sua equipe (ex.: Revisão, Copywriting, etc.).
-            </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-2">
-                <input
-                  type="text"
-                  required
-                  placeholder="Nome da etapa (ex.: Copywriting)"
-                  value={newStatusName}
-                  onChange={(e) => setNewStatusName(e.target.value)}
-                  className="w-full bg-secondary/50 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={newStatusColor}
-                  onChange={(e) => setNewStatusColor(e.target.value)}
-                  className="h-9 w-12 rounded-lg bg-transparent cursor-pointer border border-border"
-                />
-                <button
-                  type="submit"
-                  disabled={statusSaving}
-                  className="flex-1 px-4 py-2 text-xs font-semibold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm cursor-pointer disabled:opacity-50"
-                >
-                  {statusSaving ? 'Criando...' : 'Adicionar'}
-                </button>
-              </div>
-            </div>
-          </form>
-
-          {/* Lista de Colunas Atuais */}
-          <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-xs max-w-2xl">
-            <div className="p-4 border-b border-border font-bold text-sm">
-              Colunas Ativas do Kanban ({statuses.length})
-            </div>
-            <div className="divide-y divide-border/60">
-              {statuses.map((st, idx) => {
-                const isEditingThis = editingStatusId === st.id;
-
-                if (isEditingThis) {
-                  return (
-                    <div key={st.id} className="p-4 bg-secondary/50 space-y-2.5 animate-in fade-in duration-150">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={editStatusName}
-                          onChange={(e) => setEditStatusName(e.target.value)}
-                          className="flex-1 bg-background border border-border rounded-xl px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                          placeholder="Nome da etapa..."
-                        />
-                        <input
-                          type="color"
-                          value={editStatusColor}
-                          onChange={(e) => setEditStatusColor(e.target.value)}
-                          className="h-8 w-10 rounded-lg cursor-pointer border border-border bg-transparent p-0 shrink-0"
-                        />
-                      </div>
-                      <div className="flex justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setEditingStatusId(null)}
-                          className="px-3 py-1 rounded-lg text-xs bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground cursor-pointer"
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          type="button"
-                          disabled={isSavingStatusEdit || !editStatusName.trim()}
-                          onClick={() => handleSaveStatusEdit(st.id)}
-                          className="px-4 py-1 rounded-lg text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer disabled:opacity-50"
-                        >
-                          {isSavingStatusEdit ? 'Salvando...' : 'Salvar'}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div key={st.id} className="p-4 flex items-center justify-between hover:bg-secondary/20 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground font-mono w-5">#{idx + 1}</span>
-                      <span
-                        className="w-3.5 h-3.5 rounded-full shrink-0 shadow-xs"
-                        style={{ backgroundColor: st.color || '#3b82f6' }}
-                      />
-                      <div>
-                        <span className="font-semibold text-sm text-foreground">{st.name}</span>
-                        <span className="text-xs text-muted-foreground ml-2">
-                          ({st._count?.tasks || 0} tarefas ativas)
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => handleStartEditStatus(st)}
-                        className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-secondary transition-colors cursor-pointer"
-                        title="Editar nome e cor da coluna"
-                      >
-                        <Edit3 className="h-4 w-4" />
-                      </button>
-                      {st._count?.tasks === 0 && (
-                        <button
-                          onClick={() => handleDeleteStatus(st.id, st.name)}
-                          className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
-                          title="Excluir coluna vazia"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* TAB 6: SUPERADMIN SAAS */}
       {tab === 'superadmin' && user?.isSuperAdmin && (

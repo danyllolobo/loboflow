@@ -28,6 +28,7 @@ import {
 import { TaskCard } from '../components/tasks/task-card';
 import { QuickTaskInput } from '../components/tasks/quick-task-input';
 import { TaskDrawer } from '../components/tasks/task-drawer';
+import { formatDateOnly } from '../lib/date-utils';
 import { TaskPriorityIcon } from '../components/tasks/task-priority-icon';
 
 function DroppableColumn({
@@ -129,6 +130,35 @@ export function TasksPage() {
 
   // DnD Active State
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+
+  const availableProjectsForNew = newClientId
+    ? projects.filter((p) => p.clientId === newClientId)
+    : projects;
+
+  const handleNewClientChange = (selectedClientId: string) => {
+    setNewClientId(selectedClientId);
+    if (selectedClientId) {
+      const currentProj = projects.find((p) => p.id === newProjectId);
+      if (currentProj && currentProj.clientId !== selectedClientId) {
+        setNewProjectId('');
+      }
+    } else {
+      const currentProj = projects.find((p) => p.id === newProjectId);
+      if (currentProj?.clientId) {
+        setNewProjectId('');
+      }
+    }
+  };
+
+  const handleNewProjectChange = (selectedProjectId: string) => {
+    setNewProjectId(selectedProjectId);
+    if (selectedProjectId) {
+      const proj = projects.find((p) => p.id === selectedProjectId);
+      if (proj?.clientId) {
+        setNewClientId(proj.clientId);
+      }
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -508,7 +538,7 @@ export function TasksPage() {
                       {task.project?.name || task.client?.name || '—'}
                     </td>
                     <td className="py-2.5 px-3 text-muted-foreground whitespace-nowrap">
-                      {task.dueDate ? new Date(task.dueDate).toLocaleDateString('pt-BR') : '—'}
+                      {task.dueDate ? formatDateOnly(task.dueDate) : '—'}
                     </td>
                   </tr>
                 ))}
@@ -619,15 +649,21 @@ export function TasksPage() {
                   <label className="block font-semibold mb-1 text-foreground">Projeto</label>
                   <select
                     value={newProjectId}
-                    onChange={(e) => setNewProjectId(e.target.value)}
+                    onChange={(e) => handleNewProjectChange(e.target.value)}
                     className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer truncate"
                   >
                     <option value="">Nenhum</option>
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
+                    {availableProjectsForNew.length === 0 && newClientId ? (
+                      <option value="" disabled>
+                        Nenhum projeto para este cliente
                       </option>
-                    ))}
+                    ) : (
+                      availableProjectsForNew.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
 
@@ -635,7 +671,7 @@ export function TasksPage() {
                   <label className="block font-semibold mb-1 text-foreground">Cliente</label>
                   <select
                     value={newClientId}
-                    onChange={(e) => setNewClientId(e.target.value)}
+                    onChange={(e) => handleNewClientChange(e.target.value)}
                     className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer truncate"
                   >
                     <option value="">Nenhum</option>

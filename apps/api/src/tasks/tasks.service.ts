@@ -188,6 +188,36 @@ export class TasksService {
       throw new BadRequestException('A organização não possui status de tarefas configurado');
     }
 
+    // Validação consistente de Projeto e Cliente
+    let finalClientId = input.clientId || null;
+    let finalProjectId = input.projectId || null;
+
+    if (finalProjectId) {
+      const project = await this.prisma.project.findFirst({
+        where: { id: finalProjectId, organizationId: orgId, archivedAt: null },
+      });
+      if (!project) {
+        throw new NotFoundException('Projeto não encontrado nesta organização');
+      }
+      if (project.clientId) {
+        if (finalClientId && finalClientId !== project.clientId) {
+          throw new BadRequestException('O projeto selecionado pertence a outro cliente.');
+        }
+        if (!finalClientId) {
+          finalClientId = project.clientId;
+        }
+      }
+    }
+
+    if (finalClientId) {
+      const client = await this.prisma.client.findFirst({
+        where: { id: finalClientId, organizationId: orgId, archivedAt: null },
+      });
+      if (!client) {
+        throw new NotFoundException('Cliente não encontrado nesta organização');
+      }
+    }
+
     const task = await this.prisma.$transaction(async (tx) => {
       // Incrementa o número sequencial da empresa
       const updatedOrg = await tx.organization.update({
@@ -212,8 +242,8 @@ export class TasksService {
           description: input.description,
           statusId,
           priority: (input.priority as Priority) || Priority.MEDIUM,
-          projectId: input.projectId,
-          clientId: input.clientId,
+          projectId: finalProjectId,
+          clientId: finalClientId,
           parentId: input.parentId,
           startDate: input.startDate ? new Date(input.startDate) : null,
           dueDate: input.dueDate ? new Date(input.dueDate) : null,
@@ -297,6 +327,36 @@ export class TasksService {
       }
     }
 
+    // Validação consistente de Projeto e Cliente
+    let targetProjectId = input.projectId !== undefined ? (input.projectId || null) : existing.projectId;
+    let targetClientId = input.clientId !== undefined ? (input.clientId || null) : existing.clientId;
+
+    if (targetProjectId) {
+      const project = await this.prisma.project.findFirst({
+        where: { id: targetProjectId, organizationId: orgId, archivedAt: null },
+      });
+      if (!project) {
+        throw new NotFoundException('Projeto não encontrado nesta organização');
+      }
+      if (project.clientId) {
+        if (targetClientId && targetClientId !== project.clientId) {
+          throw new BadRequestException('O projeto selecionado pertence a outro cliente.');
+        }
+        if (!targetClientId) {
+          targetClientId = project.clientId;
+        }
+      }
+    }
+
+    if (targetClientId && input.clientId !== undefined && input.clientId !== null) {
+      const client = await this.prisma.client.findFirst({
+        where: { id: targetClientId, organizationId: orgId, archivedAt: null },
+      });
+      if (!client) {
+        throw new NotFoundException('Cliente não encontrado nesta organização');
+      }
+    }
+
     const updated = await this.prisma.$transaction(async (tx) => {
       // Atualiza responsáveis se fornecido
       if (input.assigneeIds) {
@@ -329,8 +389,8 @@ export class TasksService {
           description: input.description,
           statusId: input.statusId,
           priority: input.priority ? (input.priority as Priority) : undefined,
-          projectId: input.projectId,
-          clientId: input.clientId,
+          projectId: input.projectId !== undefined ? (input.projectId || null) : undefined,
+          clientId: input.clientId !== undefined ? (targetClientId || null) : (targetProjectId && targetClientId !== existing.clientId ? targetClientId : undefined),
           startDate: input.startDate !== undefined ? (input.startDate ? new Date(input.startDate) : null) : undefined,
           dueDate: input.dueDate !== undefined ? (input.dueDate ? new Date(input.dueDate) : null) : undefined,
           type: input.type,
@@ -455,9 +515,70 @@ export class TasksService {
     return comment;
   }
 
+  async updateComment(
+    orgId: string,
+    taskId: string,
+    commentId: string,
+    actorId: string,
+    body: string,
+  ) {
+    const comment = await this.prisma.comment.findFirst({
+      where: { id: commentId, taskId, organizationId: orgId, deletedAt: null },
+    });
+    if (!comment) throw new NotFoundException('Comentário não encontrado');
+
+    if (comment.authorId !== actorId) {
+      throw new ForbiddenException('Você só pode editar seus próprios comentários.');
+    }
+
+    return this.prisma.comment.update({
+      where: { id: commentId },
+      data: {
+        body: body.trim(),
+        editedAt: new Date(),
+      },
+      include: {
+        author: { select: { id: true, name: true, email: true } },
+      },
+    });
+  }
+
+  async deleteComment(
+    orgId: string,
+    taskId: string,
+    commentId: string,
+    actorId: string,
+    isSuperAdmin?: boolean,
+  ) {
+    const comment = await this.prisma.comment.findFirst({
+      where: { id: commentId, taskId, organizationId: orgId, deletedAt: null },
+    });
+    if (!comment) throw new NotFoundException('Comentário não encontrado');
+
+    if (comment.authorId !== actorId && !isSuperAdmin) {
+      throw new ForbiddenException('Você não tem permissão para excluir este comentário.');
+    }
+
+    await this.prisma.comment.update({
+      where: { id: commentId },
+      data: { deletedAt: new Date() },
+    });
+
+    await this.auditService.logActivity({
+      organizationId: orgId,
+      entityType: 'Task',
+      entityId: taskId,
+      actorId,
+      action: 'task.comment_deleted',
+    });
+
+    return { success: true };
+  }
+
   async addChecklistItem(
     orgId: string,
     taskId: string,
+    actorId: string,
     input: ChecklistItemInput,
   ) {
     const task = await this.prisma.task.findFirst({
@@ -467,13 +588,24 @@ export class TasksService {
 
     const count = await this.prisma.checklistItem.count({ where: { taskId } });
 
-    return this.prisma.checklistItem.create({
+    const item = await this.prisma.checklistItem.create({
       data: {
         taskId,
         title: input.title,
         position: count,
       },
     });
+
+    await this.auditService.logActivity({
+      organizationId: orgId,
+      entityType: 'Task',
+      entityId: taskId,
+      actorId,
+      action: 'task.checklist_added',
+      changes: { title: input.title },
+    });
+
+    return item;
   }
 
   async updateChecklistItem(
@@ -490,7 +622,7 @@ export class TasksService {
 
     if (!item) throw new NotFoundException('Item de checklist não encontrado');
 
-    return this.prisma.checklistItem.update({
+    const updated = await this.prisma.checklistItem.update({
       where: { id: itemId },
       data: {
         title: title ?? item.title,
@@ -499,6 +631,72 @@ export class TasksService {
         doneById: done ? actorId : done === false ? null : item.doneById,
       },
     });
+
+    if (done !== undefined && done !== item.done) {
+      await this.auditService.logActivity({
+        organizationId: orgId,
+        entityType: 'Task',
+        entityId: taskId,
+        actorId,
+        action: done ? 'task.checklist_completed' : 'task.checklist_reopened',
+        changes: { title: updated.title, done },
+      });
+    }
+
+    return updated;
+  }
+
+  async deleteChecklistItem(
+    orgId: string,
+    taskId: string,
+    itemId: string,
+    actorId: string,
+  ) {
+    const item = await this.prisma.checklistItem.findFirst({
+      where: { id: itemId, taskId, task: { organizationId: orgId } },
+    });
+    if (!item) throw new NotFoundException('Item de checklist não encontrado');
+
+    await this.prisma.checklistItem.delete({ where: { id: itemId } });
+
+    await this.auditService.logActivity({
+      organizationId: orgId,
+      entityType: 'Task',
+      entityId: taskId,
+      actorId,
+      action: 'task.checklist_removed',
+      changes: { title: item.title },
+    });
+
+    return { success: true };
+  }
+
+  async getActivities(orgId: string, taskId: string) {
+    const task = await this.prisma.task.findFirst({
+      where: { id: taskId, organizationId: orgId },
+      select: { id: true },
+    });
+    if (!task) throw new NotFoundException('Tarefa não encontrada');
+
+    const activities = await this.prisma.activity.findMany({
+      where: { organizationId: orgId, entityType: 'Task', entityId: taskId },
+      orderBy: { createdAt: 'desc' },
+      take: 60,
+    });
+
+    const actorIds = [...new Set(activities.map((a) => a.actorId).filter(Boolean))] as string[];
+    const actors = actorIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: actorIds } },
+          select: { id: true, name: true, email: true },
+        })
+      : [];
+    const actorsMap = new Map(actors.map((u) => [u.id, u]));
+
+    return activities.map((a) => ({
+      ...a,
+      actor: a.actorId ? actorsMap.get(a.actorId) || null : null,
+    }));
   }
 
   async archive(orgId: string, taskId: string, actorId: string) {

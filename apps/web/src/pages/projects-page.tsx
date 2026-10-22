@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/auth-context';
+import { formatDateOnly } from '../lib/date-utils';
 import {
   FolderKanban,
   Plus,
@@ -230,7 +231,7 @@ export function ProjectsPage() {
                   {proj.dueDate && (
                     <span className="flex items-center gap-1 text-[11px]">
                       <Calendar className="h-3 w-3" />
-                      {new Date(proj.dueDate).toLocaleDateString('pt-BR')}
+                      {formatDateOnly(proj.dueDate)}
                     </span>
                   )}
                 </div>

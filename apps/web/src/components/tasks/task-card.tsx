@@ -2,6 +2,7 @@ import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { Calendar, CheckSquare, MessageSquare, FolderKanban, Users2 } from 'lucide-react';
 import { TaskPriorityIcon } from './task-priority-icon';
+import { checkDateStatus } from '../../lib/date-utils';
 
 export interface TaskCardProps {
   task: any;
@@ -13,8 +14,7 @@ export function TaskCard({ task, onOpenDetail }: TaskCardProps) {
     id: task.id,
   });
 
-  const isOverdue = task.dueDate && new Date(task.dueDate).getTime() < new Date().setHours(0, 0, 0, 0);
-  const isToday = task.dueDate && new Date(task.dueDate).toDateString() === new Date().toDateString();
+  const dateStatus = checkDateStatus(task.dueDate);
 
   const checklistTotal = task._count?.checklist || 0;
   const commentsTotal = task._count?.comments || 0;
@@ -67,15 +67,15 @@ export function TaskCard({ task, onOpenDetail }: TaskCardProps) {
           {task.dueDate && (
             <span
               className={`flex items-center gap-1 font-medium ${
-                isOverdue
+                dateStatus.isOverdue
                   ? 'text-rose-500 font-semibold'
-                  : isToday
+                  : dateStatus.isToday
                   ? 'text-amber-500 font-semibold'
                   : 'text-muted-foreground'
               }`}
             >
               <Calendar className="h-3 w-3 shrink-0" />
-              {new Date(task.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+              {dateStatus.formattedShort}
             </span>
           )}
 
