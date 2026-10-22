@@ -27,6 +27,7 @@ import {
   PieChart,
   LucideIcon,
   Edit3,
+  Trash2,
 } from 'lucide-react';
 import {
   DndContext,
@@ -147,10 +148,12 @@ function DraggableDealCard({
   deal,
   onOpenDetail,
   onOpenEdit,
+  onDelete,
 }: {
   deal: DealItem;
   onOpenDetail: (deal: DealItem) => void;
   onOpenEdit?: (deal: DealItem) => void;
+  onDelete?: (deal: DealItem) => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: deal.id,
@@ -195,6 +198,20 @@ function DraggableDealCard({
                 title="Editar oportunidade"
               >
                 <Edit3 className="w-3 h-3" />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(deal);
+                }}
+                className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500 transition-all"
+                title="Excluir oportunidade"
+              >
+                <Trash2 className="w-3 h-3" />
               </button>
             )}
           </div>
@@ -469,6 +486,26 @@ export function CommercialPage() {
       alert(err.message || 'Erro ao atualizar dados da negociação');
     } finally {
       setIsSavingDealEdit(false);
+    }
+  };
+
+  const handleDeleteDeal = async (dealId: string, prospectName?: string) => {
+    if (
+      !window.confirm(
+        `Tem certeza que deseja excluir a oportunidade "${prospectName || 'esta oportunidade'}"? Esta ação não pode ser desfeita.`,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await api.delete(`/deals/${dealId}`);
+      setDeals((prev) => prev.filter((d) => d.id !== dealId));
+      if (activeDealDetails?.id === dealId) {
+        setActiveDealDetails(null);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Erro ao excluir oportunidade');
     }
   };
 
@@ -854,6 +891,7 @@ export function CommercialPage() {
                           deal={deal}
                           onOpenDetail={openDealDrawer}
                           onOpenEdit={(d) => openDealDrawer(d, true)}
+                          onDelete={(d) => handleDeleteDeal(d.id, d.prospectName)}
                         />
                       ))
                     )}
@@ -1117,6 +1155,15 @@ export function CommercialPage() {
                 >
                   <Edit3 className="w-3.5 h-3.5" />
                   <span>{isEditingDeal ? 'Fechar Edição' : 'Editar Oportunidade'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteDeal(activeDealDetails.id, activeDealDetails.prospectName)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border border-rose-500/20 transition-all"
+                  title="Excluir oportunidade permanentemente"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Excluir</span>
                 </button>
                 <button
                   onClick={() => setActiveDealDetails(null)}

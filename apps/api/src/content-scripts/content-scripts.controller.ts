@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -78,6 +79,15 @@ export class ContentScriptsController {
     @Body('status') status: ScriptStatus,
   ) {
     return this.scriptsService.changeStatus(org.id, id, status);
+  }
+
+  @Delete(':id')
+  async delete(
+    @CurrentOrg() org: ActiveOrganizationContext,
+    @Param('id') id: string,
+    @Query('permanent') permanent?: string,
+  ) {
+    return this.scriptsService.delete(org.id, id, permanent === 'true');
   }
 
   @Post(':id/archive')

@@ -20,6 +20,7 @@ import {
   ArrowUpRight,
   Eye,
   AlertCircle,
+  Trash2,
 } from 'lucide-react';
 import {
   DEFAULT_SCRIPT_FORMATS,
@@ -247,6 +248,22 @@ export function ScriptsPage() {
       );
     } catch (err) {
       console.error('Erro ao atualizar status do roteiro:', err);
+    }
+  };
+
+  const handleDeleteScript = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!confirm('Deseja realmente excluir este roteiro?')) return;
+    try {
+      await api.delete(`/scripts/${id}`);
+      await fetchScripts();
+      if (editingScript?.id === id) {
+        setIsModalOpen(false);
+        setEditingScript(null);
+      }
+    } catch (err: any) {
+      console.error('Erro ao excluir roteiro:', err);
+      alert(err.message || 'Erro ao excluir roteiro.');
     }
   };
 
@@ -581,6 +598,14 @@ export function ScriptsPage() {
                       >
                         <Edit3 className="w-4 h-4" />
                       </button>
+
+                      <button
+                        onClick={(e) => handleDeleteScript(script.id, e)}
+                        title="Excluir Roteiro"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -760,21 +785,36 @@ export function ScriptsPage() {
               )}
 
               {/* Botões do Rodapé */}
-              <div className="pt-4 border-t border-border flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:bg-muted transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="px-6 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all disabled:opacity-50"
-                >
-                  {isSaving ? 'Salvando...' : editingScript ? 'Salvar Nova Versão' : 'Criar Roteiro'}
-                </button>
+              <div className="pt-4 border-t border-border flex items-center justify-between gap-3">
+                <div>
+                  {editingScript && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteScript(editingScript.id)}
+                      className="px-3.5 py-2 rounded-xl text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition-colors flex items-center gap-1.5"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Excluir Roteiro</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:bg-muted transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="px-6 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all disabled:opacity-50"
+                  >
+                    {isSaving ? 'Salvando...' : editingScript ? 'Salvar Nova Versão' : 'Criar Roteiro'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

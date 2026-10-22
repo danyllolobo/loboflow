@@ -152,10 +152,20 @@ export class ClientsService {
   }
 
   async archive(orgId: string, id: string, actorId: string) {
+    return this.delete(orgId, id, actorId, false);
+  }
+
+  async delete(orgId: string, id: string, actorId: string, permanent = false) {
     const existing = await this.prisma.client.findFirst({
       where: { id, organizationId: orgId },
     });
     if (!existing) throw new NotFoundException('Cliente não encontrado');
+
+    if (permanent) {
+      await this.prisma.clientOwner.deleteMany({ where: { clientId: id } });
+      await this.prisma.client.delete({ where: { id } });
+      return { success: true, message: 'Cliente excluído com sucesso.' };
+    }
 
     const updated = await this.prisma.client.update({
       where: { id },
@@ -168,6 +178,7 @@ export class ClientsService {
       entityId: id,
       actorId,
       action: 'client.archived',
+      changes: { name: existing.name },
     });
 
     return updated;

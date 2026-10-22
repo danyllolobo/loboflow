@@ -207,4 +207,12 @@ export class DealsService {
       },
     });
   }
+
+  async delete(orgId: string, dealId: string) {
+    const deal = await this.getOne(orgId, dealId);
+    await this.prisma.deal.delete({
+      where: { id: deal.id },
+    });
+    return { success: true, message: 'Oportunidade excluída com sucesso.' };
+  }
 }

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -77,6 +78,17 @@ export class OrganizationsController {
     return this.orgsService.updateMember(orgId, memberId, actorId, input);
   }
 
+  @Delete('current/members/:memberId')
+  @UseGuards(TenantGuard, PermissionsGuard)
+  @RequirePermissions('team.edit')
+  async removeMember(
+    @CurrentOrg('id') orgId: string,
+    @Param('memberId') memberId: string,
+    @CurrentUser('id') actorId: string,
+  ) {
+    return this.orgsService.removeMember(orgId, memberId, actorId);
+  }
+
   @Post('current/invitations')
   @UseGuards(TenantGuard, PermissionsGuard)
   @RequirePermissions('team.invite')
@@ -87,6 +99,17 @@ export class OrganizationsController {
   ) {
     const input = inviteMemberSchema.parse(body);
     return this.orgsService.inviteMember(orgId, actorId, input);
+  }
+
+  @Delete('current/invitations/:invitationId')
+  @UseGuards(TenantGuard, PermissionsGuard)
+  @RequirePermissions('team.invite')
+  async revokeInvitation(
+    @CurrentOrg('id') orgId: string,
+    @Param('invitationId') invitationId: string,
+    @CurrentUser('id') actorId: string,
+  ) {
+    return this.orgsService.revokeInvitation(orgId, invitationId, actorId);
   }
 
   @Get('current/roles')
@@ -119,5 +142,16 @@ export class OrganizationsController {
   ) {
     const input = roleSchema.parse(body);
     return this.orgsService.updateRole(orgId, roleId, actorId, input);
+  }
+
+  @Delete('current/roles/:roleId')
+  @UseGuards(TenantGuard, PermissionsGuard)
+  @RequirePermissions('team.edit')
+  async deleteRole(
+    @CurrentOrg('id') orgId: string,
+    @Param('roleId') roleId: string,
+    @CurrentUser('id') actorId: string,
+  ) {
+    return this.orgsService.deleteRole(orgId, roleId, actorId);
   }
 }

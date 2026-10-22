@@ -354,6 +354,17 @@ export function TasksPage() {
     }
   };
 
+  const handleDeleteTask = async (taskId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Deseja realmente excluir esta demanda?')) return;
+    try {
+      await api.delete(`/tasks/${taskId}`);
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || 'Erro ao excluir demanda');
+    }
+  };
+
   return (
     <div className="space-y-4 h-full flex flex-col">
       {/* Top Header & Controles */}
@@ -504,6 +515,7 @@ export function TasksPage() {
                   <th className="py-2.5 px-3 font-semibold">Prioridade</th>
                   <th className="py-2.5 px-3 font-semibold">Projeto / Cliente</th>
                   <th className="py-2.5 px-3 font-semibold">Prazo</th>
+                  <th className="py-2.5 px-3 font-semibold text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
@@ -511,7 +523,7 @@ export function TasksPage() {
                   <tr
                     key={task.id}
                     onClick={() => setSelectedTaskId(task.id)}
-                    className="hover:bg-secondary/40 cursor-pointer transition-colors"
+                    className="hover:bg-secondary/40 cursor-pointer transition-colors group"
                   >
                     <td className="py-2.5 px-3 font-mono text-muted-foreground font-semibold">
                       #{task.number}
@@ -540,11 +552,21 @@ export function TasksPage() {
                     <td className="py-2.5 px-3 text-muted-foreground whitespace-nowrap">
                       {task.dueDate ? formatDateOnly(task.dueDate) : '—'}
                     </td>
+                    <td className="py-2.5 px-3 text-right">
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteTask(task.id, e)}
+                        className="p-1 rounded-md text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                        title="Excluir demanda"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {tasks.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                    <td colSpan={7} className="py-8 text-center text-muted-foreground">
                       Nenhuma tarefa encontrada para este filtro.
                     </td>
                   </tr>

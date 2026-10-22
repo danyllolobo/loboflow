@@ -23,22 +23,22 @@ export class TasksService {
     private readonly auditService: AuditService,
   ) {}
 
-  async list(orgContext: ActiveOrganizationContext, query: TaskListQuery, userId: string) {
+  async list(orgContext: ActiveOrganizationContext, query: TaskListQuery = {} as any, userId?: string) {
     const orgId = orgContext.id;
     const where: any = {
       organizationId: orgId,
     };
 
-    if (!query.includeArchived) {
+    if (!query?.includeArchived) {
       where.archivedAt = null;
     }
 
-    if (!query.includeSubtasks) {
+    if (!query?.includeSubtasks) {
       where.parentId = null;
     }
 
     // Filtros de escopo RBAC
-    const viewScope = orgContext.permissions['tasks.view'] ?? 'ALL';
+    const viewScope = orgContext?.permissions?.['tasks.view'] ?? 'ALL';
     if (viewScope === 'ASSIGNED') {
       where.assignees = { some: { userId } };
     } else if (viewScope === 'OWN') {
@@ -80,11 +80,16 @@ export class TasksService {
     if (query.clientId) where.clientId = query.clientId;
     if (query.labelId) where.labels = { some: { labelId: query.labelId } };
 
-    if (query.dueFrom || query.dueTo) {
+    if (query?.dueFrom || query?.dueTo) {
       where.dueDate = {};
       if (query.dueFrom) where.dueDate.gte = new Date(query.dueFrom);
       if (query.dueTo) where.dueDate.lte = new Date(query.dueTo);
     }
+
+    const page = Math.max(1, Number(query?.page) || 1);
+    const pageSize = Math.max(1, Math.min(100, Number(query?.pageSize) || 50));
+    const sortField = query?.sort || 'position';
+    const sortOrder = query?.order || 'asc';
 
     const [items, total] = await Promise.all([
       this.prisma.task.findMany({
@@ -104,9 +109,9 @@ export class TasksService {
             select: { comments: true, attachments: true, subtasks: true },
           },
         },
-        orderBy: { [query.sort]: query.order },
-        skip: (query.page - 1) * query.pageSize,
-        take: query.pageSize,
+        orderBy: { [sortField]: sortOrder },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
       }),
       this.prisma.task.count({ where }),
     ]);
@@ -114,8 +119,9 @@ export class TasksService {
     return {
       items,
       total,
-      page: query.page,
-      pageSize: query.pageSize,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
     };
   }
 
@@ -700,10 +706,33 @@ export class TasksService {
   }
 
   async archive(orgId: string, taskId: string, actorId: string) {
+    return this.delete(orgId, taskId, actorId, false);
+  }
+
+  async delete(orgId: string, taskId: string, actorId: string, permanent = false) {
     const task = await this.prisma.task.findFirst({
       where: { id: taskId, organizationId: orgId },
     });
     if (!task) throw new NotFoundException('Tarefa não encontrada');
+
+    if (permanent) {
+      await this.prisma.activity.deleteMany({
+        where: { organizationId: orgId, entityType: 'Task', entityId: taskId },
+      });
+      await this.prisma.task.delete({
+        where: { id: taskId },
+      });
+      await this.auditService.logAudit({
+        organizationId: orgId,
+        actorType: ActorType.USER,
+        actorId,
+        action: 'task.deleted_permanently',
+        entityType: 'Task',
+        entityId: taskId,
+        metadata: { title: task.title, number: task.number, permanent: true },
+      });
+      return { success: true, message: 'Tarefa excluída permanentemente' };
+    }
 
     const updated = await this.prisma.task.update({
       where: { id: taskId },
@@ -716,6 +745,17 @@ export class TasksService {
       entityId: taskId,
       actorId,
       action: 'task.archived',
+      changes: { title: task.title, number: task.number },
+    });
+
+    await this.auditService.logAudit({
+      organizationId: orgId,
+      actorType: ActorType.USER,
+      actorId,
+      action: 'task.deleted',
+      entityType: 'Task',
+      entityId: taskId,
+      metadata: { title: task.title, number: task.number, permanent: false },
     });
 
     return updated;

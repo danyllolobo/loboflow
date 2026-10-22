@@ -128,6 +128,18 @@ export function ProjectsPage() {
     }
   };
 
+  const handleDeleteProject = async (projId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!confirm('Deseja realmente excluir este projeto?')) return;
+    try {
+      await api.delete(`/projects/${projId}`);
+      if (editingProject?.id === projId) setEditingProject(null);
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || 'Erro ao excluir projeto');
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -190,14 +202,22 @@ export function ProjectsPage() {
                     </span>
                   </div>
 
-                  {/* Botão Editar Projeto */}
-                  <button
-                    onClick={() => handleOpenEdit(proj)}
-                    className="p-1 rounded-lg hover:bg-secondary text-muted-foreground hover:text-primary transition-colors cursor-pointer"
-                    title="Editar Projeto"
-                  >
-                    <Edit3 className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleOpenEdit(proj)}
+                      className="p-1 rounded-lg hover:bg-secondary text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                      title="Editar Projeto"
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteProject(proj.id, e)}
+                      className="p-1 rounded-lg hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500 transition-colors cursor-pointer"
+                      title="Excluir Projeto"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors break-words">
@@ -416,21 +436,32 @@ export function ProjectsPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-4 border-t border-border">
+              <div className="flex items-center justify-between gap-2.5 pt-4 border-t border-border">
                 <button
                   type="button"
-                  onClick={() => setEditingProject(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-secondary hover:bg-secondary/80 text-foreground cursor-pointer"
+                  onClick={() => handleDeleteProject(editingProject.id)}
+                  className="px-3.5 py-2 rounded-xl text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
-                  Cancelar
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Excluir Projeto</span>
                 </button>
-                <button
-                  type="submit"
-                  disabled={isSavingEdit}
-                  className="px-5 py-2 rounded-xl text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm cursor-pointer disabled:opacity-50"
-                >
-                  {isSavingEdit ? 'Salvando...' : 'Salvar Alterações'}
-                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingProject(null)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-secondary hover:bg-secondary/80 text-foreground cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingEdit}
+                    className="px-5 py-2 rounded-xl text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm cursor-pointer disabled:opacity-50"
+                  >
+                    {isSavingEdit ? 'Salvando...' : 'Salvar Alterações'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

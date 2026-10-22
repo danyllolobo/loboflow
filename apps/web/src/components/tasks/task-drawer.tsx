@@ -439,13 +439,14 @@ export function TaskDrawer({
 
   const handleArchive = async () => {
     if (!taskId) return;
-    if (!confirm('Deseja realmente arquivar esta tarefa?')) return;
+    if (!confirm('Deseja realmente excluir esta demanda?')) return;
     try {
       await api.delete(`/tasks/${taskId}`);
       onTaskUpdated();
       onClose();
-    } catch (err) {
-      console.error('Falha ao arquivar tarefa', err);
+    } catch (err: any) {
+      console.error('Falha ao excluir demanda', err);
+      alert(err.message || 'Erro ao excluir demanda. Verifique suas permissões.');
     }
   };
 

@@ -201,10 +201,20 @@ export class ProjectsService {
   }
 
   async archive(orgId: string, id: string, actorId: string) {
+    return this.delete(orgId, id, actorId, false);
+  }
+
+  async delete(orgId: string, id: string, actorId: string, permanent = false) {
     const existing = await this.prisma.project.findFirst({
       where: { id, organizationId: orgId },
     });
     if (!existing) throw new NotFoundException('Projeto não encontrado');
+
+    if (permanent) {
+      await this.prisma.projectMember.deleteMany({ where: { projectId: id } });
+      await this.prisma.project.delete({ where: { id } });
+      return { success: true, message: 'Projeto excluído com sucesso.' };
+    }
 
     const updated = await this.prisma.project.update({
       where: { id },
@@ -217,6 +227,7 @@ export class ProjectsService {
       entityId: id,
       actorId,
       action: 'project.archived',
+      changes: { name: existing.name },
     });
 
     return updated;

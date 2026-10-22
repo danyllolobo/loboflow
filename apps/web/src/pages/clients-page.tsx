@@ -18,6 +18,7 @@ import {
   AlertCircle,
   FileText,
   ExternalLink,
+  Trash2,
 } from 'lucide-react';
 import { CLIENT_STATUS_LABELS, CLIENT_STATUSES, ClientStatus } from '@loboflow/shared';
 
@@ -178,6 +179,24 @@ export function ClientsPage() {
     }
   };
 
+  const handleDeleteClient = async (id: string, clientName?: string) => {
+    if (
+      !confirm(
+        `Tem certeza que deseja excluir o cliente "${clientName || 'este cliente'}"? Esta ação removerá o cliente e seus registros vinculados.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await api.delete(`/clients/${id}`);
+      setSelectedClient(null);
+      setEditingClient(null);
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || 'Erro ao excluir cliente');
+    }
+  };
+
   const getStatusBadge = (status: ClientStatus) => {
     switch (status) {
       case 'ACTIVE':
@@ -268,6 +287,16 @@ export function ClientsPage() {
                       title="Editar Cliente"
                     >
                       <Edit3 className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteClient(c.id, c.name);
+                      }}
+                      className="p-1.5 rounded-lg hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500 transition-colors cursor-pointer"
+                      title="Excluir Cliente"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
@@ -625,13 +654,22 @@ export function ClientsPage() {
             </div>
 
             <div className="pt-3 border-t border-border flex justify-between items-center">
-              <button
-                type="button"
-                onClick={() => handleArchive(selectedClient.id)}
-                className="text-xs text-rose-500 hover:text-rose-400 flex items-center gap-1.5 cursor-pointer font-medium"
-              >
-                <Archive className="h-3.5 w-3.5" /> Arquivar Cliente
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleArchive(selectedClient.id)}
+                  className="text-xs text-amber-500 hover:text-amber-400 flex items-center gap-1.5 cursor-pointer font-medium"
+                >
+                  <Archive className="h-3.5 w-3.5" /> Arquivar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteClient(selectedClient.id, selectedClient.name)}
+                  className="text-xs text-rose-500 hover:text-rose-400 flex items-center gap-1.5 cursor-pointer font-medium"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Excluir Cliente
+                </button>
+              </div>
 
               <button
                 type="button"
@@ -769,21 +807,30 @@ export function ClientsPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-4 border-t border-border">
+              <div className="flex justify-between items-center pt-4 border-t border-border">
                 <button
                   type="button"
-                  onClick={() => setEditingClient(null)}
-                  className="px-4 py-2 text-xs font-semibold rounded-xl bg-secondary hover:bg-secondary/80 text-foreground cursor-pointer"
+                  onClick={() => handleDeleteClient(editingClient.id, editingClient.name)}
+                  className="px-3 py-2 text-xs font-semibold rounded-xl text-rose-500 hover:bg-rose-500/10 border border-rose-500/20 flex items-center gap-1.5 cursor-pointer"
                 >
-                  Cancelar
+                  <Trash2 className="h-3.5 w-3.5" /> Excluir Cliente
                 </button>
-                <button
-                  type="submit"
-                  disabled={isSavingEdit}
-                  className="px-5 py-2 text-xs font-semibold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm cursor-pointer disabled:opacity-50"
-                >
-                  {isSavingEdit ? 'Salvando...' : 'Salvar Alterações'}
-                </button>
+                <div className="flex gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setEditingClient(null)}
+                    className="px-4 py-2 text-xs font-semibold rounded-xl bg-secondary hover:bg-secondary/80 text-foreground cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingEdit}
+                    className="px-5 py-2 text-xs font-semibold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm cursor-pointer disabled:opacity-50"
+                  >
+                    {isSavingEdit ? 'Salvando...' : 'Salvar Alterações'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

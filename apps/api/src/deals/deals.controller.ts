@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -98,5 +99,13 @@ export class DealsController {
   ) {
     const input = dealInteractionSchema.parse(body);
     return this.dealsService.addInteraction(org.id, id, user.id, input);
+  }
+
+  @Delete(':id')
+  async delete(
+    @CurrentOrg() org: ActiveOrganizationContext,
+    @Param('id') id: string,
+  ) {
+    return this.dealsService.delete(org.id, id);
   }
 }

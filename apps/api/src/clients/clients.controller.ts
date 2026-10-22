@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -65,6 +66,17 @@ export class ClientsController {
   ) {
     const input = updateClientSchema.parse(body);
     return this.clientsService.update(orgId, id, userId, input);
+  }
+
+  @Delete(':id')
+  @RequirePermissions('clients.delete')
+  async delete(
+    @CurrentOrg('id') orgId: string,
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Query('permanent') permanent?: string,
+  ) {
+    return this.clientsService.delete(orgId, id, userId, permanent === 'true');
   }
 
   @Post(':id/archive')

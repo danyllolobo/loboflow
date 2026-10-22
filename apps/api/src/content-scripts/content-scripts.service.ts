@@ -160,7 +160,16 @@ export class ContentScriptsService {
   }
 
   async archive(orgId: string, id: string) {
+    return this.delete(orgId, id, false);
+  }
+
+  async delete(orgId: string, id: string, permanent = false) {
     const existing = await this.getOne(orgId, id);
+    if (permanent) {
+      await this.prisma.scriptVersion.deleteMany({ where: { scriptId: existing.id } });
+      await this.prisma.script.delete({ where: { id: existing.id } });
+      return { success: true, message: 'Roteiro excluído com sucesso.' };
+    }
     return this.prisma.script.update({
       where: { id: existing.id },
       data: { archivedAt: new Date() },

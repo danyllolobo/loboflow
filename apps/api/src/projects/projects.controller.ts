@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -64,6 +65,17 @@ export class ProjectsController {
   ) {
     const input = updateProjectSchema.parse(body);
     return this.projectsService.update(orgId, id, userId, input);
+  }
+
+  @Delete(':id')
+  @RequirePermissions('projects.delete')
+  async delete(
+    @CurrentOrg('id') orgId: string,
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Query('permanent') permanent?: string,
+  ) {
+    return this.projectsService.delete(orgId, id, userId, permanent === 'true');
   }
 
   @Post(':id/archive')

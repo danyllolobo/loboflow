@@ -227,6 +227,32 @@ export function SettingsPage() {
     }
   };
 
+  const handleRemoveMember = async (memberId: string, memberName?: string) => {
+    if (
+      !confirm(
+        `Tem certeza que deseja remover ${memberName || 'este membro'} da organização? O usuário perderá o acesso aos recursos desta empresa.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await api.delete(`/organizations/current/members/${memberId}`);
+      setMembers((prev) => prev.filter((m) => m.id !== memberId));
+    } catch (err: any) {
+      alert(err.message || 'Erro ao remover membro');
+    }
+  };
+
+  const handleDeleteRole = async (roleId: string, roleName: string) => {
+    if (!confirm(`Deseja realmente excluir o papel personalizado "${roleName}"?`)) return;
+    try {
+      await api.delete(`/organizations/current/roles/${roleId}`);
+      setRoles((prev) => prev.filter((r) => r.id !== roleId));
+    } catch (err: any) {
+      alert(err.message || 'Erro ao excluir papel');
+    }
+  };
+
 
   if (loading) {
     return (
@@ -790,9 +816,21 @@ export function SettingsPage() {
                     </div>
                   </div>
 
-                  <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-secondary text-foreground">
-                    {m.role?.name}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-secondary text-foreground">
+                      {m.role?.name}
+                    </span>
+                    {!m.role?.isOwner && m.user?.id !== user?.id && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMember(m.id, m.user?.name)}
+                        className="p-1.5 rounded-lg hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500 transition-colors"
+                        title="Remover membro da organização"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -811,11 +849,22 @@ export function SettingsPage() {
               <div key={r.id} className="p-4 space-y-1">
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-sm text-foreground">{r.name}</span>
-                  {r.isOwner && (
-                    <span className="text-[10px] bg-primary/20 text-primary font-bold px-2 py-0.5 rounded-full uppercase">
-                      Proprietário
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {r.isOwner ? (
+                      <span className="text-[10px] bg-primary/20 text-primary font-bold px-2 py-0.5 rounded-full uppercase">
+                        Proprietário
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteRole(r.id, r.name)}
+                        className="p-1.5 rounded-lg hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500 transition-colors"
+                        title="Excluir papel"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground">{r.description || 'Sem descrição'}</p>
                 <div className="text-[11px] text-muted-foreground pt-1">

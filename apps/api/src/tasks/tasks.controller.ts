@@ -211,6 +211,17 @@ export class TasksController {
     return this.tasksService.getActivities(orgId, taskId);
   }
 
+  @Delete(':id')
+  @RequirePermissions('tasks.delete')
+  async delete(
+    @CurrentOrg('id') orgId: string,
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Query('permanent') permanent?: string,
+  ) {
+    return this.tasksService.delete(orgId, id, userId, permanent === 'true');
+  }
+
   @Post(':id/archive')
   @RequirePermissions('tasks.delete')
   async archive(

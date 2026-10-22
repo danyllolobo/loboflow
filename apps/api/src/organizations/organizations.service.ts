@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -334,5 +335,102 @@ export class OrganizationsService {
     });
 
     return updated;
+  }
+
+  async removeMember(orgId: string, memberId: string, actorId: string) {
+    const membership = await this.prisma.membership.findUnique({
+      where: { id: memberId },
+      include: { role: true, user: true },
+    });
+
+    if (!membership || membership.organizationId !== orgId) {
+      throw new NotFoundException('Membro não encontrado nesta organização');
+    }
+
+    if (membership.role.isOwner) {
+      throw new ForbiddenException('Não é permitido remover o Proprietário da empresa');
+    }
+
+    if (membership.userId === actorId) {
+      throw new ForbiddenException('Você não pode remover a si mesmo da equipe por esta tela');
+    }
+
+    await this.prisma.membership.delete({
+      where: { id: memberId },
+    });
+
+    await this.auditService.logAudit({
+      organizationId: orgId,
+      actorType: ActorType.USER,
+      actorId,
+      action: 'member.removed',
+      entityType: 'Membership',
+      entityId: memberId,
+      metadata: { removedUserName: membership.user.name, removedUserEmail: membership.user.email },
+    });
+
+    return { success: true, message: 'Membro removido com sucesso' };
+  }
+
+  async deleteRole(orgId: string, roleId: string, actorId: string) {
+    const role = await this.prisma.role.findFirst({
+      where: { id: roleId, organizationId: orgId },
+      include: { _count: { select: { memberships: true } } },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Papel não encontrado');
+    }
+
+    if (role.isOwner) {
+      throw new ForbiddenException('O papel do Proprietário não pode ser excluído');
+    }
+
+    if (role._count.memberships > 0) {
+      throw new ConflictException(
+        `Não é possível excluir o papel "${role.name}" pois existem ${role._count.memberships} membro(s) vinculados a ele. Reatribua os membros antes de excluir.`,
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.rolePermission.deleteMany({ where: { roleId } });
+      await tx.role.delete({ where: { id: roleId } });
+    });
+
+    await this.auditService.logAudit({
+      organizationId: orgId,
+      actorType: ActorType.USER,
+      actorId,
+      action: 'role.deleted',
+      entityId: roleId,
+      metadata: { name: role.name },
+    });
+
+    return { success: true, message: 'Papel excluído com sucesso' };
+  }
+
+  async revokeInvitation(orgId: string, invitationId: string, actorId: string) {
+    const invitation = await this.prisma.invitation.findFirst({
+      where: { id: invitationId, organizationId: orgId },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('Convite não encontrado');
+    }
+
+    await this.prisma.invitation.delete({
+      where: { id: invitationId },
+    });
+
+    await this.auditService.logAudit({
+      organizationId: orgId,
+      actorType: ActorType.USER,
+      actorId,
+      action: 'invitation.revoked',
+      entityId: invitationId,
+      metadata: { email: invitation.email },
+    });
+
+    return { success: true, message: 'Convite revogado com sucesso' };
   }
 }
